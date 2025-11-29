@@ -30,6 +30,15 @@
         <div class="col-md-4">
           <input id="contact" class="form-control" placeholder="Contact No" />
         </div>
+        <div class="col-md-4">
+          <input
+            id="gmail"
+            type="email"
+            class="form-control"
+            placeholder="Gmail Address"
+            required
+          />
+        </div>
       </div>
       <button class="btn btn-primary mt-3">Add Customer</button>
     </form>
@@ -42,6 +51,7 @@
           <th>ID</th>
           <th>Name</th>
           <th>CNIC</th>
+          <th>Gmail</th>
           <th>Contact</th>
         </tr>
       </thead>
@@ -58,6 +68,7 @@
                <td>${c.CustID}</td>
                <td>${c.Name}</td>
                <td>${c.CNIC}</td>
+               <td>${c.Gmail}</td>
                <td>${c.Contact}</td>
              </tr>`;
         });
@@ -70,6 +81,7 @@
           name: document.getElementById("name").value,
           cnic: document.getElementById("cnic").value,
           contact: document.getElementById("contact").value,
+          gmail: document.getElementById("gmail").value,
         };
 
         await fetch("/api/customers", {

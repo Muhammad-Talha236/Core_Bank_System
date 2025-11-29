@@ -104,12 +104,15 @@
           </ul>
 
           <div class="navbar-actions">
-            <div class="user-profile">
+            <div
+              class="user-profile"
+              onclick="showSection('team')"
+              style="cursor: pointer"
+            >
               <div class="user-avatar">
-                <i class="fas fa-user-shield"></i>
+                <i class="fas fa-users-cog"></i>
               </div>
-              <span class="user-name">Admin</span>
-              <i class="fas fa-chevron-down"></i>
+              <span class="user-name">Team</span>
             </div>
           </div>
         </div>
@@ -149,7 +152,7 @@
               <div class="stat-label">Active Accounts</div>
             </div>
             <div class="stat-item">
-              <div class="stat-number" id="heroBalance">₹0</div>
+              <div class="stat-number" id="heroBalance">Pkr</div>
               <div class="stat-label">Total Assets</div>
             </div>
           </div>
@@ -162,7 +165,7 @@
       <!-- Dashboard Section -->
       <section id="dashboard" class="content-section active">
         <div class="container">
-          <!-- Quick Stats (unchanged) -->
+          <!-- Quick Stats -->
           <div class="row g-4 mb-5">
             <div class="col-xl-3 col-md-6">
               <div class="stat-card primary">
@@ -200,7 +203,7 @@
                   <i class="fas fa-rupee-sign"></i>
                 </div>
                 <div class="stat-info">
-                  <h3 id="totalBalance">₹0</h3>
+                  <h3 id="totalBalance">@</h3>
                   <p>Total Balance</p>
                 </div>
                 <div class="stat-trend">
@@ -226,7 +229,7 @@
             </div>
           </div>
 
-          <!-- Quick Actions & Recent Activity (unchanged) -->
+          <!-- Quick Actions & Recent Activity -->
           <div class="row g-4">
             <div class="col-lg-6">
               <div class="card modern-card">
@@ -245,7 +248,7 @@
                       <div class="action-icon account">
                         <i class="fas fa-plus-circle"></i>
                       </div>
-                      <span>Create Account</span>
+                      <span>View Accounts</span>
                     </div>
                     <div
                       class="action-item"
@@ -281,7 +284,7 @@
             </div>
           </div>
 
-          <!-- System Overview (unchanged) -->
+          <!-- System Overview -->
           <div class="row mt-4">
             <div class="col-12">
               <div class="card modern-card">
@@ -354,11 +357,14 @@
               <h4><i class="fas fa-user-plus me-2"></i>Add New Customer</h4>
             </div>
             <div class="card-body">
+              <!-- In the customer registration form section -->
               <form id="customerForm" class="modern-form" novalidate>
                 <div class="row g-3">
                   <div class="col-md-4">
                     <div class="form-group">
-                      <label>Full Name</label>
+                      <label
+                        >Full Name <span class="text-danger">*</span></label
+                      >
                       <input
                         type="text"
                         class="form-control modern-input"
@@ -376,7 +382,9 @@
 
                   <div class="col-md-4">
                     <div class="form-group">
-                      <label>CNIC Number</label>
+                      <label
+                        >CNIC Number <span class="text-danger">*</span></label
+                      >
                       <input
                         type="text"
                         class="form-control modern-input"
@@ -395,7 +403,10 @@
 
                   <div class="col-md-4">
                     <div class="form-group">
-                      <label>Contact Number</label>
+                      <label
+                        >Contact Number
+                        <span class="text-danger">*</span></label
+                      >
                       <input
                         type="tel"
                         class="form-control modern-input"
@@ -412,9 +423,11 @@
                     </div>
                   </div>
 
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <div class="form-group">
-                      <label>Enter Email</label>
+                      <label
+                        >Email Address <span class="text-danger">*</span></label
+                      >
                       <input
                         type="email"
                         class="form-control modern-input"
@@ -422,7 +435,7 @@
                         name="email"
                         required
                         placeholder="example@gmail.com"
-                        pattern="^[a-zA-Z0-9._%+-]+@gmail\\.com$"
+                        pattern="[a-zA-Z0-9._%+-]+@gmail\\.com$"
                         title="Please enter a valid Gmail address (example@gmail.com)."
                       />
                       <div class="invalid-feedback">
@@ -430,11 +443,61 @@
                       </div>
                     </div>
                   </div>
+
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label
+                        >Account Type <span class="text-danger">*</span></label
+                      >
+                      <select
+                        class="form-control modern-input"
+                        id="customerAccountType"
+                        name="accountType"
+                        required
+                      >
+                        <option value="" disabled selected>
+                          Select Account Type
+                        </option>
+                        <option value="SAV">Savings Account</option>
+                        <option value="CUR">Current Account</option>
+                      </select>
+                      <div class="invalid-feedback">
+                        Please select an account type.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label
+                        >Initial Balance (PKR)
+                        <span class="text-danger">*</span></label
+                      >
+                      <input
+                        type="number"
+                        class="form-control modern-input"
+                        id="customerBalance"
+                        name="balance"
+                        required
+                        min="0"
+                        step="0.01"
+                        value="0"
+                        placeholder="0.00"
+                      />
+                      <div class="invalid-feedback">
+                        Please enter initial balance (minimum 0).
+                      </div>
+                      <small class="form-text text-muted">
+                        Minimum balance: ₨0
+                      </small>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-actions">
                   <button type="submit" class="btn btn-primary btn-modern">
-                    <i class="fas fa-save me-2"></i>Add Customer
+                    <i class="fas fa-save me-2"></i>Add Customer & Create
+                    Account
                   </button>
                 </div>
               </form>
@@ -487,88 +550,13 @@
         <div class="container">
           <div class="section-header">
             <h2>Account Management</h2>
-            <p>Create and manage bank accounts</p>
+            <p>
+              View all bank accounts (Accounts are automatically created with
+              customer registration)
+            </p>
           </div>
 
-          <!-- Create Account Card -->
-          <div class="card modern-card accent-card mb-4">
-            <div class="card-header">
-              <h4><i class="fas fa-plus-circle me-2"></i>Create New Account</h4>
-            </div>
-            <div class="card-body">
-              <form id="accountForm" class="modern-form" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Customer ID</label>
-                      <input
-                        type="number"
-                        class="form-control modern-input"
-                        id="accountCustomerID"
-                        name="custID"
-                        min="1"
-                        required
-                        placeholder="Customer ID (numeric)"
-                      />
-                      <div class="invalid-feedback">
-                        Enter a valid customer ID.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Account Type</label>
-                      <select
-                        class="form-control modern-input"
-                        id="accountType"
-                        name="type"
-                        required
-                      >
-                        <option value="SAV">Savings Account</option>
-                        <option value="CUR">Current Account</option>
-                        <option value="CORP">Corporate Account</option>
-                        <option value="FD">Fixed Deposit</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>Initial Balance (PKR)</label>
-                      <input
-                        type="number"
-                        class="form-control modern-input"
-                        id="accountBalance"
-                        name="balance"
-                        value="0"
-                        min="0"
-                        step="0.01"
-                        required
-                      />
-                      <div class="invalid-feedback">
-                        Enter a valid initial balance (>= 0).
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <div class="form-group">
-                      <label>&nbsp;</label>
-                      <button
-                        type="submit"
-                        class="btn btn-success btn-modern w-100"
-                      >
-                        <i class="fas fa-plus me-2"></i>Create
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- Accounts Table -->
+          <!-- Accounts Table - READ ONLY -->
           <div class="card modern-card">
             <div class="card-header">
               <h4><i class="fas fa-credit-card me-2"></i>Account Portfolio</h4>
@@ -622,7 +610,6 @@
                   <h4><i class="fas fa-arrow-down me-2"></i>Deposit Funds</h4>
                 </div>
                 <div class="card-body">
-                  <!-- Important: input names must match what app.js expects -->
                   <form id="depositForm" class="modern-form" novalidate>
                     <div class="form-group">
                       <label>Account Number</label>
@@ -1048,10 +1035,8 @@
                       <th>User</th>
                       <th>Details</th>
                       <th>Timestamp</th>
-                      <th>Actions</th>
                     </tr>
                   </thead>
-                  <!-- IMPORTANT: id must match app.js loader -->
                   <tbody id="auditTable"></tbody>
                 </table>
               </div>
@@ -1103,7 +1088,129 @@
         </div>
       </section>
     </main>
+    <main class="main-content">
+      <section id="team" class="content-section">
+        <div class="container">
+          <div class="section-header">
+            <h2>Our Dedicated Team</h2>
+            <p>The core members driving the Core Banking System project</p>
+          </div>
 
+          <div class="row g-4 justify-content-center" id="teamMembersContainer">
+            <div class="col-lg-4 col-md-6 animate__animated animate__fadeInUp">
+              <div class="flip-card">
+                <div class="flip-card-inner">
+                  <div class="flip-card-front team-card">
+                    <div class="team-avatar">
+                      <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <h4 class="team-name">Muhammad Talha</h4>
+                    <p class="team-role">Lead Developer & System Architect</p>
+                  </div>
+                  <div class="flip-card-back team-card">
+                    <div class="team-bio">
+                      <p>
+                        Focused on backend development, database management, and
+                        API integration for system security and performance.
+                      </p>
+                    </div>
+                    <div class="team-social mt-3">
+                      <a
+                        href="mailto:muhammad.talha.dev@example.com"
+                        class="btn btn-sm "
+                        title="Email"
+                      >
+                        <i class="fas fa-envelope"></i>
+                      </a>
+                     </a>
+                <a href="#" class="btn btn-sm btn-outline-info" title="GitHub">
+                  <i class="fab fa-github"></i>
+                </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="col-lg-4 col-md-6 animate__animated animate__fadeInUp animate__delay-1s"
+            >
+              <div class="flip-card">
+                <div class="flip-card-inner">
+                  <div class="flip-card-front team-card">
+                    <div class="team-avatar design">
+                      <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h4 class="team-name">Faiza Ali</h4>
+                    <p class="team-role">
+                      UI/UX Designer & Frontend Specialist
+                    </p>
+                  </div>
+                  <div class="flip-card-back team-card">
+                    <div class="team-bio">
+                      <p>
+                        Responsible for the modern, responsive design and
+                        intuitive user interface of the banking system.
+                      </p>
+                    </div>
+                    <div class="team-social mt-3">
+                      <a
+                        href="mailto:ayesha.khan.design@example.com"
+                        class="btn btn-sm"
+                        title="Email"
+                      >
+                        <i class="fas fa-envelope"></i>
+                      </a>
+                    </a>
+                <a href="#" class="btn btn-sm btn-outline-info" title="GitHub">
+                  <i class="fab fa-github"></i>
+                </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="col-lg-4 col-md-6 animate__animated animate__fadeInUp animate__delay-2s"
+            >
+              <div class="flip-card">
+                <div class="flip-card-inner">
+                  <div class="flip-card-front team-card">
+                    <div class="team-avatar support">
+                      <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4 class="team-name">Laiba Khalid</h4>
+                    <p class="team-role">Data Analyst & QA Engineer</p>
+                  </div>
+                  <div class="flip-card-back team-card">
+                    <div class="team-bio">
+                      <p>
+                        Handles system testing, data integrity checks, and
+                        performance monitoring to ensure stability and accuracy.
+                      </p>
+                    </div>
+                    <div class="team-social mt-3">
+                      <a
+                        href="mailto:zain.ali.qa@example.com"
+                        class="btn btn-sm"
+                        title="Email"
+                      >
+                        <i class="fas fa-envelope"></i>
+                      </a>
+                     </a>
+                <a href="#" class="btn btn-sm btn-outline-info" title="GitHub">
+                  <i class="fab fa-github"></i>
+                </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
     <!-- Footer -->
     <footer class="footer">
       <div class="container">
@@ -1140,7 +1247,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
-    <!-- Link your app script (we will update it next to use new fields & validations) -->
+    <!-- Link your app script -->
     <script src="js/app.js"></script>
   </body>
 </html>

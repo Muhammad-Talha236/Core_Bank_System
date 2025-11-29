@@ -27,7 +27,7 @@ INSERT INTO SavingAccount (AccountNo, InterestRate) VALUES
 (1, 3.50),
 (3, 4.00);
 
--- =====================================================
+-- =====================================================d:\Core_Banking_System-main
 -- Insert Current Account Details
 -- =====================================================
 INSERT INTO CurrentAccount (AccountNo, OverdraftLimit) VALUES
@@ -148,3 +148,132 @@ SELECT
 FROM Customer c
 LEFT JOIN Account a ON c.CustomerID = a.CustomerID
 GROUP BY c.CustomerID;
+
+DELIMITER $$
+
+-- Deposit Procedure (FIXED: Added UserName parameter and INSERT)
+DROP PROCEDURE IF EXISTS sp_deposit $$
+CREATE PROCEDURE sp_deposit(
+    IN p_account_no INT UNSIGNED,
+    IN p_amount DECIMAL(15,2),
+    IN p_method ENUM('Cash', 'Cheque', 'Online'),
+    IN p_user VARCHAR(50)
+)
+BEGIN
+    DECLARE v_current_balance DECIMAL(15,2);
+    DECLARE v_trans_id INT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SELECT 'Error: Transaction rolled back' AS message;
+    END;
+    
+    START TRANSACTION;
+    
+    SELECT Balance INTO v_current_balance FROM Account WHERE AccountNo = p_account_no FOR UPDATE;
+    
+    UPDATE Account 
+    SET Balance = Balance + p_amount 
+    WHERE AccountNo = p_account_no;
+    
+    INSERT INTO TransactionLog (FromAccount, ToAccount, Amount, Type, Status, UserName)
+    VALUES (NULL, p_account_no, p_amount, 'Deposit', 'Success', p_user);
+    
+    SET v_trans_id = LAST_INSERT_ID();
+    
+    INSERT INTO Deposit (TransID, Amount, DepositMethod)
+    VALUES (v_trans_id, p_amount, p_method);
+    
+    COMMIT;
+    SELECT 'Success' AS status, v_trans_id AS TransID, p_account_no AS AccountNo;
+END $$
+
+-- Withdraw Procedure (FIXED: Complete implementation)
+DROP PROCEDURE IF EXISTS sp_withdraw $$
+CREATE PROCEDURE sp_withdraw(
+    IN p_account_no INT UNSIGNED,
+    IN p_amount DECIMAL(15,2),
+    IN p_method ENUM('ATM', 'Counter', 'Online'),
+    IN p_user VARCHAR(50)
+)
+BEGIN
+    DECLARE v_current_balance DECIMAL(15,2);
+    DECLARE v_trans_id INT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SELECT 'Error: Transaction rolled back' AS message;
+    END;
+    
+    START TRANSACTION;
+    
+    SELECT Balance INTO v_current_balance FROM Account WHERE AccountNo = p_account_no FOR UPDATE;
+    
+    IF v_current_balance < p_amount THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient balance';
+    END IF;
+    
+    UPDATE Account 
+    SET Balance = Balance - p_amount 
+    WHERE AccountNo = p_account_no;
+    
+    INSERT INTO TransactionLog (FromAccount, ToAccount, Amount, Type, Status, UserName)
+    VALUES (p_account_no, NULL, p_amount, 'Withdrawal', 'Success', p_user);
+    
+    SET v_trans_id = LAST_INSERT_ID();
+    
+    INSERT INTO Withdrawal (TransID, Amount, WithdrawalMethod)
+    VALUES (v_trans_id, p_amount, p_method);
+    
+    COMMIT;
+    SELECT 'Success' AS status, v_trans_id AS TransID, p_account_no AS AccountNo;
+END $$
+
+-- Transfer Procedure (FIXED: Complete implementation)
+DROP PROCEDURE IF EXISTS sp_transfer $$
+CREATE PROCEDURE sp_transfer(
+    IN p_from_account INT UNSIGNED,
+    IN p_to_account INT UNSIGNED,
+    IN p_amount DECIMAL(15,2),
+    IN p_user VARCHAR(50)
+)
+BEGIN
+    DECLARE v_from_balance DECIMAL(15,2);
+    DECLARE v_trans_id INT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SELECT 'Error: Transaction rolled back' AS message;
+    END;
+    
+    START TRANSACTION;
+    
+    SELECT Balance INTO v_from_balance FROM Account WHERE AccountNo = p_from_account FOR UPDATE;
+    
+    IF v_from_balance < p_amount THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Insufficient balance';
+    END IF;
+    
+    UPDATE Account 
+    SET Balance = Balance - p_amount 
+    WHERE AccountNo = p_from_account;
+    
+    UPDATE Account 
+    SET Balance = Balance + p_amount 
+    WHERE AccountNo = p_to_account;
+    
+    INSERT INTO TransactionLog (FromAccount, ToAccount, Amount, Type, Status, UserName)
+    VALUES (p_from_account, p_to_account, p_amount, 'Transfer', 'Success', p_user);
+    
+    SET v_trans_id = LAST_INSERT_ID();
+    
+    INSERT INTO Transfer (TransID, Amount, TransferType)
+    VALUES (v_trans_id, p_amount, 'Internal');
+    
+    COMMIT;
+    SELECT 'Success' AS status, v_trans_id AS TransID, p_from_account AS FromAccount, p_to_account AS ToAccount;
+END $$
+
+DELIMITER ;

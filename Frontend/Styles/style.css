@@ -13,7 +13,7 @@
     --gray: #6c757d;
     --gray-light: #e9ecef;
     --border: #e1e5eb;
-    --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow: 0 4px 20px rgba(29, 20, 20, 0.08);
     --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
     --gradient-primary: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
     --gradient-secondary: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
@@ -549,41 +549,55 @@ body {
 
 /* Tables */
 .table-modern {
+    /* kept visual styles, make table area scrollable */
     border-radius: 15px;
-    overflow: hidden;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+    /* NEW: fixed / responsive scrollable area */
+    max-height: 300px;           /* preferred fixed height */
+    height: 300px;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    -webkit-overflow-scrolling: touch; /* smooth on mobile */
 }
 
+/* ensure table stays responsive inside the scroll container */
 .table-modern .table {
     margin: 0;
     border-radius: 15px;
-    overflow: hidden;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    min-width: 600px; /* allow horizontal scroll on narrow viewports */
 }
 
+/* Keep the header visible while scrolling */
 .table-modern .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     background: var(--gradient-primary);
     color: white;
-    border: none;
-    padding: 1.25rem 1rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
 }
 
+/* preserve row hover / spacing behavior inside scroll container */
 .table-modern .table tbody td {
     padding: 1.25rem 1rem;
     vertical-align: middle;
     border-color: var(--border);
 }
 
-.table-modern .table tbody tr {
-    transition: all 0.3s ease;
-}
+/* Responsive adjustments: smaller height on narrow screens */
+@media (max-width: 768px) {
+    .table-modern {
+        height: min(50vh, 300px);
+        max-height: 50vh;
+    }
 
-.table-modern .table tbody tr:hover {
-    background: rgba(26, 35, 126, 0.02);
-    transform: scale(1.01);
+    .table-modern .table {
+        min-width: 480px;
+    }
 }
 
 /* Activity List */
@@ -1019,21 +1033,309 @@ body {
 /* Audit details preview */
 .audit-details-preview {
     max-width: 200px;
+    display: inline-block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    vertical-align: middle;
 }
 
-/* Tooltip enhancements */
-.btn[data-bs-toggle="tooltip"] {
-    margin: 0 0.1rem;
+/* Scrollable Audit Table Container */
+.audit-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
 }
 
-/* Additional badge colors */
-.badge-secondary {
-    background: var(--gray);
+/* Sticky table header for audit table */
+.audit-table-container .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--gradient-primary);
+    color: white;
 }
 
-::-webkit-scrollbar-thumb:hover {
+/* Custom scrollbar for audit table */
+.audit-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.audit-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.audit-table-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+.audit-table-container::-webkit-scrollbar-thumb:hover {
     background: var(--primary-dark);
+}
+/* Balance input styling */
+.balance-input-group {
+    position: relative;
+}
+
+.balance-input-group .currency-symbol {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-weight: 500;
+}
+
+.balance-input-group input {
+    padding-left: 30px;
+}
+
+/* Balance info card */
+.balance-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.balance-requirements {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.balance-requirements h6 {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.balance-requirements ul {
+    margin-bottom: 0;
+    padding-left: 1.2rem;
+}
+
+.balance-requirements li {
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+/* Team Section Styles */
+/* Team Section Styles */
+.team-card {
+    /* CHANGED: Set background to a light blue */
+    background-color: #1a237e; /* A very light blue for card background */
+    border: 1px solid white; /* Changed border to primary color */
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+/* ... (rest of the team styles remains the same) */
+.team-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.team-avatar {
+    width: 80px;
+    height: 80px;
+    line-height: 80px;
+    background: var(--color-primary-light);
+    color: white;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    font-size: 30px;
+    border: 3px solid var(--color-primary);
+}
+
+.team-avatar.design {
+    background: var(--color-info-light);
+    color: white;
+    border-color: var(--color-info);
+}
+
+.team-avatar.support {
+    background: var(--color-success-light);
+    color: white;
+    border-color: var(--color-success);
+}
+
+.team-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: white;
+}
+
+.team-role {
+    color: white;
+    font-weight: 500;
+    margin-bottom: 15px;
+    font-style: italic;
+}
+
+.team-social {
+    margin-bottom: 20px;
+}
+
+.team-social .btn {
+    margin: 0 5px;
+    width: 38px;
+    height: 38px;
+    line-height: 38px;
+    padding: 0;
+    font-size: 16px;
+    border-radius: 50%;
+    color: white;
+    border-color: white;
+}
+
+.team-bio {
+    font-size: 0.9rem;
+    color: white;
+}
+
+
+/* --- Modern Flip Card Structure --- */
+.flip-card {
+    /* Base container for the flip effect */
+    background-color: transparent; /* Card itself should not have a background */
+    width: 100%;
+    height: 350px;
+    perspective: 1000px;
+    border-radius: 12px;
+    /* NEW: Soft, modern glow/shadow effect */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
+    overflow: hidden; /* Ensures content stays within rounded corners */
+}
+
+.flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); /* Smoother, faster transition */
+    transform-style: preserve-3d;
+}
+
+/* The flip effect */
+.flip-card:hover .flip-card-inner {
+    transform: rotateY(180deg);
+}
+
+/* Position the front and back side */
+.flip-card-front, .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* --- Team Card Styles (Front Side - Deep Indigo/Modern Look) --- */
+
+.team-card {
+    /* Applied to the front face */
+    /* NEW: Deep, modern indigo background for a high-end feel */
+    background: white; 
+    color: black; /* White text on the dark background */
+    border: none; /* Remove border for a cleaner edge */
+    border-radius: 12px;
+    padding: 30px;
+    border-left: 5px solid #1a237e;
+  
+    /* Removed individual card shadow since it's on the flip-card container */
+    transition: background 0.3s ease; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.team-name {
+    color: #000000;
+}
+
+.team-role {
+    /* Use a softer color for secondary text */
+    color: rgba(0, 0, 0, 0.7); 
+    font-weight: 400; /* Lighter font weight for modern look */
+}
+
+/* Update Avatar Style for dark background */
+.team-avatar {
+    width: 80px;
+    height: 80px;
+    line-height: 80px;
+    background: rgba(255, 255, 255, 0.1); /* Subtle transparent background */
+    color: #1a237e; /* White icon */
+    border-radius: 50%;
+    margin: 0 auto 15px;
+    font-size: 30px;
+    border: 2px solid #1a237e; /* White border */
+}
+/* Ensure specialized avatars also look good */
+.team-avatar.design {
+    color: #80deea; /* Light cyan accent */
+    border-color: #80deea;
+}
+.team-avatar.support {
+    color: #a5d6a7; /* Light green accent */
+    border-color: #a5d6a7;
+}
+
+
+/* --- Back Side - Accent Color & Bio --- */
+
+.flip-card-back {
+    transform: rotateY(180deg); 
+    /* NEW: Use a vibrant, modern primary color for the back */
+    background: var(--color-primary, white); 
+    color: #000000; /* White text */
+    border: none;
+    border-radius: 12px;
+    border-right: 5px solid #1a237e;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.flip-card-back .team-name {
+    font-size: 1.6rem;
+    color: #000000;
+    margin-bottom: 5px;
+}
+
+.flip-card-back .team-role {
+    /* Slightly opaque white for contrast */
+    color: rgba(7, 0, 0, 0.85);
+    font-style: normal;
+}
+
+.flip-card-back .team-bio p {
+    color: #000000; 
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.flip-card-back .team-social .btn {
+    /* Button should stand out on the back */
+    color:black;
+    font-weight: 600;
+    font-size: 1.5rem;
+    border-radius: 8px;
+}
+
+.flip-card-back .team-social .btn:hover {
+    background-color: #0f0101;
 }

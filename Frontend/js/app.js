@@ -1,7 +1,11 @@
 // Enhanced Modern Banking App
 class CoreBankingApp {
     constructor() {
-        this.API_BASE = '/api';
+        // Resolve API base to a full absolute URL; if opened from file:// fallback to localhost
+        const origin = (window && window.location && window.location.protocol === 'file:')
+            ? 'http://localhost:3000' // adjust your backend host/port if different
+            : window.location.origin;
+        this.API_BASE = `${origin}/api`;
         this.currentSection = 'dashboard';
         this.init();
     }
@@ -52,7 +56,6 @@ class CoreBankingApp {
     setupEventListeners() {
         // Forms
         document.getElementById('customerForm').addEventListener('submit', (e) => this.handleAddCustomer(e));
-        document.getElementById('accountForm').addEventListener('submit', (e) => this.handleCreateAccount(e));
         document.getElementById('depositForm').addEventListener('submit', (e) => this.handleDeposit(e));
         document.getElementById('withdrawForm').addEventListener('submit', (e) => this.handleWithdraw(e));
         document.getElementById('transferForm').addEventListener('submit', (e) => this.handleTransfer(e));
@@ -74,44 +77,47 @@ class CoreBankingApp {
     }
 
     async showSection(sectionName) {
-        // Hide all sections
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        
-        // Show selected section
-        document.getElementById(sectionName).classList.add('active');
-        
-        // Update active nav link
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-        });
-        document.querySelector(`[href="#${sectionName}"]`).classList.add('active');
-        
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        // Load section data
-        switch(sectionName) {
-            case 'dashboard':
-                await this.loadDashboard();
-                break;
-            case 'customers':
-                await this.loadCustomers();
-                break;
-            case 'accounts':
-                await this.loadAccounts();
-                break;
-            case 'transactions':
-                await this.loadTransactions();
-                break;
-            case 'audit':
-                await this.loadAuditLogs();
-                break;
-        }
-        
-        this.currentSection = sectionName;
+    // Hide all sections
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+
+    // Show selected section
+    document.getElementById(sectionName).classList.add('active');
+
+    // Update active nav link
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    document.querySelector(`[href="#${sectionName}"]`).classList.add('active');
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Load section data
+    switch (sectionName) {
+        case 'dashboard':
+            await this.loadDashboard();
+            break;
+        case 'customers':
+            await this.loadCustomers();
+            break;
+        case 'accounts':
+            await this.loadAccounts();
+            break;
+        // case 'transactions':
+        //     await this.loadTransactions(); // This calls the function now
+        //     break;
+        case 'audit':
+            await this.loadAuditLogs();
+            break;
+            case 'team': // ADDED NEW SECTION CASE
+            // Static content, no data loading needed
+            break;
     }
+
+    this.currentSection = sectionName;
+}
 
     // Loading utilities
     showLoading() {
@@ -126,22 +132,58 @@ class CoreBankingApp {
     async apiCall(endpoint, options = {}) {
         try {
             this.showLoading();
-            const response = await fetch(`${this.API_BASE}${endpoint}`, {
+
+            // Build absolute URL
+            const url = endpoint.startsWith('http://') || endpoint.startsWith('https://')
+                ? endpoint
+                : `${this.API_BASE.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
+
+            // Prepare options safely
+            const fetchOptions = {
+                method: options.method || 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...options.headers
+                    ...(options.headers || {})
                 },
-                ...options
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // include credentials by default (adjust if not needed)
+                credentials: options.credentials || 'same-origin',
+                mode: options.mode || 'cors',
+                cache: options.cache || 'no-cache'
+            };
+
+            // Stringify body if present and not already a string / FormData
+            if (options.body !== undefined && options.body !== null) {
+                if (typeof options.body === 'string' || options.body instanceof FormData) {
+                    fetchOptions.body = options.body;
+                    // If FormData, allow browser to set content-type (remove header)
+                    if (options.body instanceof FormData) {
+                        delete fetchOptions.headers['Content-Type'];
+                    }
+                } else {
+                    fetchOptions.body = JSON.stringify(options.body);
+                }
             }
-            
-            return await response.json();
+
+            const response = await fetch(url, fetchOptions);
+
+            if (!response.ok) {
+                // try to parse json error if any
+                let errText = `HTTP error! status: ${response.status}`;
+                try {
+                    const errBody = await response.json();
+                    errText += ` - ${errBody.error || JSON.stringify(errBody)}`;
+                } catch (_) {
+                    // ignore parse errors
+                }
+                throw new Error(errText);
+            }
+
+            // attempt to parse JSON; return null if no content
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
         } catch (error) {
             console.error('API call failed:', error);
-            this.showNotification('Error: ' + error.message, 'danger');
+            this.showNotification('Error: ' + (error.message || 'Network error'), 'danger');
             throw error;
         } finally {
             this.hideLoading();
@@ -160,9 +202,9 @@ class CoreBankingApp {
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         document.body.appendChild(alert);
-        
+
         // Auto remove after 5 seconds
         setTimeout(() => {
             if (alert.parentNode) {
@@ -189,29 +231,29 @@ class CoreBankingApp {
                 this.apiCall('/accounts'),
                 this.apiCall('/audit')
             ]);
-            
+
             // Update hero stats
             document.getElementById('heroCustomers').textContent = customers.length;
             document.getElementById('heroAccounts').textContent = accounts.length;
-            
+
             const totalBalance = accounts.reduce((sum, account) => sum + parseFloat(account.Balance), 0);
             document.getElementById('heroBalance').textContent = this.formatCurrency(totalBalance);
-            
+
             // Update dashboard stats
             document.getElementById('totalCustomers').textContent = customers.length;
             document.getElementById('totalAccounts').textContent = accounts.length;
             document.getElementById('totalBalance').textContent = this.formatCurrency(totalBalance);
-            
+
             const today = new Date().toISOString().split('T')[0];
-            const todayTransactions = audit.filter(log => 
-                log.CreatedAt.includes(today) && 
+            const todayTransactions = audit.filter(log =>
+                log.CreatedAt.includes(today) &&
                 ['COMMIT', 'Success'].includes(log.Operation)
             ).length;
             document.getElementById('todayTransactions').textContent = todayTransactions;
-            
+
             // Load recent activity
             this.loadRecentActivity(audit);
-            
+
         } catch (error) {
             console.error('Error loading dashboard:', error);
         }
@@ -220,7 +262,7 @@ class CoreBankingApp {
     loadRecentActivity(auditLogs) {
         const activityList = document.getElementById('recentActivity');
         const recentActivities = auditLogs.slice(0, 5);
-        
+
         activityList.innerHTML = recentActivities.map(log => `
             <div class="activity-item">
                 <div class="activity-icon ${this.getActivityType(log.Operation)}">
@@ -262,7 +304,7 @@ class CoreBankingApp {
         try {
             const customers = await this.apiCall('/customers');
             const tableBody = document.getElementById('customersTable');
-            
+
             tableBody.innerHTML = customers.map(customer => `
                 <tr>
                     <td><strong>#${customer.CustID}</strong></td>
@@ -279,6 +321,7 @@ class CoreBankingApp {
                     </td>
                     <td>${customer.CNIC}</td>
                     <td>${customer.Contact}</td>
+                    <td>${customer.Gmail}</td>
                     <td><span class="badge badge-success">Active</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary" onclick="app.editCustomer(${customer.CustID})">
@@ -287,47 +330,140 @@ class CoreBankingApp {
                     </td>
                 </tr>
             `).join('');
-            
+
         } catch (error) {
             console.error('Error loading customers:', error);
         }
     }
 
-    async handleAddCustomer(e) {
-        e.preventDefault();
-        
-        const formData = {
-            name: document.getElementById('customerName').value,
-            cnic: document.getElementById('customerCNIC').value,
-            contact: document.getElementById('customerContact').value
-        };
-        
-        try {
-            const result = await this.apiCall('/customers', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-            
-            this.showNotification('Customer added successfully!', 'success');
-            document.getElementById('customerForm').reset();
-            this.loadCustomers();
-            this.loadDashboard();
-            
-        } catch (error) {
-            console.error('Error adding customer:', error);
-        }
-    }
+    // MODIFIED: Added accountType handling
+   // Enhanced handleAddCustomer with better validation
+// Enhanced handleAddCustomer with balance handling
+async handleAddCustomer(e) {
+    e.preventDefault();
+    
+    console.log('Starting customer addition process...');
 
-    // Account functions
+    try {
+        // Get form elements with null checks
+        const nameInput = document.getElementById('customerName');
+        const cnicInput = document.getElementById('customerCNIC');
+        const contactInput = document.getElementById('customerContact');
+        const emailInput = document.getElementById('customerEmail') || document.getElementById('customerGmail');
+        const accountTypeInput = document.getElementById('customerAccountType');
+        const balanceInput = document.getElementById('customerBalance'); // NEW: Get balance input
+
+        // Validate required fields exist
+        if (!nameInput || !cnicInput || !contactInput) {
+            this.showNotification('Required form fields are missing', 'danger');
+            return;
+        }
+
+        const formData = {
+            name: nameInput.value.trim(),
+            cnic: cnicInput.value.trim(),
+            contact: contactInput.value.trim(),
+            gmail: emailInput ? emailInput.value.trim() : '',
+            accountType: accountTypeInput ? accountTypeInput.value : 'SAV',
+            initialBalance: balanceInput ? parseFloat(balanceInput.value) || 0 : 0 // NEW: Get balance value
+        };
+
+        // Enhanced client-side validation
+        if (!formData.name) {
+            this.showNotification('Please enter customer name', 'danger');
+            nameInput.focus();
+            return;
+        }
+
+        if (!formData.cnic) {
+            this.showNotification('Please enter CNIC number', 'danger');
+            cnicInput.focus();
+            return;
+        }
+
+        // CNIC format validation
+        const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
+        if (!cnicRegex.test(formData.cnic)) {
+            this.showNotification('CNIC must be in format: 12345-1234567-1', 'danger');
+            cnicInput.focus();
+            return;
+        }
+
+        if (!formData.contact) {
+            this.showNotification('Please enter contact number', 'danger');
+            contactInput.focus();
+            return;
+        }
+
+        // Contact format validation
+        const contactRegex = /^03\d{2}-\d{7}$/;
+        if (!contactRegex.test(formData.contact)) {
+            this.showNotification('Contact must be in format: 03XX-XXXXXXX', 'danger');
+            contactInput.focus();
+            return;
+        }
+
+        if (formData.gmail) {
+            // Email validation
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+            if (!emailRegex.test(formData.gmail)) {
+                this.showNotification('Please enter a valid Gmail address', 'danger');
+                emailInput.focus();
+                return;
+            }
+        }
+
+        if (!formData.accountType) {
+            this.showNotification('Please select an account type', 'danger');
+            accountTypeInput.focus();
+            return;
+        }
+
+        // NEW: Validate balance
+        if (formData.initialBalance < 0) {
+            this.showNotification('Initial balance cannot be negative', 'danger');
+            balanceInput.focus();
+            return;
+        }
+
+        console.log('Sending customer data:', formData);
+
+        // API call with balance included
+        const result = await this.apiCall('/customers', {
+            method: 'POST',
+            body: JSON.stringify(formData)
+        });
+
+        console.log('Customer added successfully:', result);
+
+        this.showNotification(
+            `Customer and account created successfully! Initial balance: ₹${formData.initialBalance.toFixed(2)}`, 
+            'success'
+        );
+        document.getElementById('customerForm').reset();
+        
+        // Refresh relevant sections
+        await Promise.all([
+            this.loadCustomers(),
+            this.loadDashboard(),
+            this.loadAccounts()
+        ]);
+
+    } catch (error) {
+        console.error('Error adding customer:', error);
+        this.showNotification(`Failed to add customer: ${error.message}`, 'danger');
+    }
+}
+    // MODIFIED: Read-only display only
     async loadAccounts() {
         try {
             const accounts = await this.apiCall('/accounts');
             const tableBody = document.getElementById('accountsTable');
-            
+
             tableBody.innerHTML = accounts.map(account => `
                 <tr>
-                    <td><strong>#${account.AccountNo}</strong></td>
-                    <td>${account.CustID}</td>
+                    <td><strong>${account.AccountNo}</strong></td>
+                    <td>${account.CustomerName || account.CustID}</td>
                     <td>
                         <span class="badge ${account.Type === 'Savings' ? 'badge-success' : 'badge-info'}">
                             ${account.Type}
@@ -340,40 +476,19 @@ class CoreBankingApp {
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-info">
+                        <button class="btn btn-sm btn-outline-info" title="View Account Details">
                             <i class="fas fa-eye"></i>
                         </button>
                     </td>
                 </tr>
             `).join('');
-            
+
+            // Update showing counts
+            document.getElementById('accountsShowing').textContent = accounts.length;
+            document.getElementById('accountsTotal').textContent = accounts.length;
+
         } catch (error) {
             console.error('Error loading accounts:', error);
-        }
-    }
-
-    async handleCreateAccount(e) {
-        e.preventDefault();
-        
-        const formData = {
-            custID: document.getElementById('accountCustomerID').value,
-            type: document.getElementById('accountType').value,
-            balance: document.getElementById('accountBalance').value
-        };
-        
-        try {
-            const result = await this.apiCall('/accounts', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-            
-            this.showNotification('Account created successfully!', 'success');
-            document.getElementById('accountForm').reset();
-            this.loadAccounts();
-            this.loadDashboard();
-            
-        } catch (error) {
-            console.error('Error creating account:', error);
         }
     }
 
@@ -400,17 +515,17 @@ class CoreBankingApp {
             amount: parseFloat(formData.get('amount')),
             user: formData.get('user')
         };
-        
+
         if (type === 'transfer') {
             data.toAccount = formData.get('toAccount');
         }
-        
+
         try {
             const result = await this.apiCall(`/transactions/${type}`, {
                 method: 'POST',
                 body: JSON.stringify(data)
             });
-            
+
             if (result.success) {
                 this.showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} completed successfully!`, 'success');
                 this.displayTransactionResult(type, data, result);
@@ -419,7 +534,7 @@ class CoreBankingApp {
             } else {
                 throw new Error(result.error || 'Transaction failed');
             }
-            
+
         } catch (error) {
             console.error(`Error processing ${type}:`, error);
             this.displayTransactionError(error.message);
@@ -443,7 +558,7 @@ class CoreBankingApp {
                         <strong>${this.formatCurrency(data.amount)}</strong>
                     </div>
         `;
-        
+
         if (type === 'deposit' && result.receiver) {
             resultHtml += `
                 <div class="detail-item">
@@ -486,7 +601,7 @@ class CoreBankingApp {
                 </div>
             `;
         }
-        
+
         resultHtml += `</div></div>`;
         document.getElementById('transactionResult').innerHTML = resultHtml;
     }
@@ -506,20 +621,48 @@ class CoreBankingApp {
         document.getElementById('transactionResult').innerHTML = errorHtml;
     }
 
-    // Audit log functions
+    // MODIFIED: Fixed statistics calculation
     async loadAuditLogs() {
         try {
             const auditLogs = await this.apiCall('/audit');
-            const tableBody = document.getElementById('auditTable');
+
+            // Calculate Stats - FIXED: Proper counting logic
+            const totalLogs = auditLogs.length;
             
+            // Count successful operations (COMMIT or Status = 'Success')
+            const successfulOps = auditLogs.filter(log => 
+                log.Operation === 'COMMIT' || log.Status === 'Success'
+            ).length;
+            
+            // Count failed operations (ROLLBACK or Status = 'Failed')
+            const failedOps = auditLogs.filter(log => 
+                log.Operation === 'ROLLBACK' || log.Status === 'Failed'
+            ).length;
+
+            // Count today's operations
+            const today = new Date().toISOString().split('T')[0];
+            const todayOps = auditLogs.filter(log => 
+                log.CreatedAt && log.CreatedAt.startsWith(today)
+            ).length;
+
+            // Update Stat Cards - FIXED: Using correct element IDs
+            document.getElementById('totalAuditLogs').textContent = totalLogs;
+            document.getElementById('successfulOperations').textContent = successfulOps;
+            document.getElementById('failedOperations').textContent = failedOps;
+            document.getElementById('todayOperations').textContent = todayOps;
+
+            // Populate audit table
+            const tableBody = document.getElementById('auditTable');
             tableBody.innerHTML = auditLogs.map(log => `
                 <tr>
                     <td><strong>#${log.LogID}</strong></td>
                     <td>
-                        <span class="badge ${
-                            log.Operation === 'COMMIT' ? 'badge-success' : 
-                            log.Operation === 'ROLLBACK' ? 'badge-danger' : 'badge-secondary'
-                        }">
+                        <span class="badge 
+                        ${log.Operation === 'COMMIT' ? 'badge-success' :
+                            log.Operation === 'ROLLBACK' ? 'badge-warning' :
+                            log.Operation === 'INSERT' ? 'badge-info' :  // <-- NEW: Use 'badge-info' for INSERT
+                            'badge-secondary'
+                }">
                             ${log.Operation}
                         </span>
                     </td>
@@ -537,7 +680,11 @@ class CoreBankingApp {
                     <td>${new Date(log.CreatedAt).toLocaleString()}</td>
                 </tr>
             `).join('');
-            
+
+            // Update showing counts
+            document.getElementById('auditShowing').textContent = auditLogs.length;
+            document.getElementById('auditTotal').textContent = auditLogs.length;
+
         } catch (error) {
             console.error('Error loading audit logs:', error);
         }
@@ -545,11 +692,33 @@ class CoreBankingApp {
 
     // Utility functions
     formatCurrency(amount) {
-        return '₹' + parseFloat(amount).toLocaleString('en-IN');
+        return 'pkr ' + parseFloat(amount).toLocaleString('en-IN');
     }
 
     editCustomer(customerId) {
         this.showNotification('Edit feature coming soon!', 'info');
+    }
+
+    // Additional methods for audit filters
+    applyAuditFilters() {
+        this.showNotification('Filter functionality coming soon!', 'info');
+    }
+
+    clearAuditFilters() {
+        document.getElementById('auditOperationFilter').value = '';
+        document.getElementById('auditTableFilter').value = '';
+        document.getElementById('auditDateFrom').value = '';
+        document.getElementById('auditDateTo').value = '';
+        this.loadAuditLogs();
+    }
+
+    exportAuditLogs() {
+        this.showNotification('Export functionality coming soon!', 'info');
+    }
+
+    refreshAuditLogs() {
+        this.loadAuditLogs();
+        this.showNotification('Audit logs refreshed!', 'success');
     }
 }
 
