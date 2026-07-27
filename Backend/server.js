@@ -54,6 +54,24 @@ async function generateAccountNumber() {
   return accountNo;
 }
 
+/**
+ * NEW HELPER FUNCTION: Check if an account number exists and is active.
+ * @param {number} accountNo 
+ * @returns {Promise<boolean>}
+ */
+async function checkAccountExists(accountNo) {
+  try {
+    const [rows] = await pool.query(
+      'SELECT AccountNo FROM Account WHERE AccountNo = ? AND Status = "Active"',
+      [accountNo]
+    );
+    return rows.length > 0;
+  } catch (error) {
+    console.error('Database error during account existence check:', error);
+    return false; // Treat error as non-existent for safety
+  }
+}
+
 // ==================== CUSTOMER ROUTES ====================
 
 // Get all customers
@@ -284,6 +302,11 @@ app.post('/api/transactions/deposit', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Valid account number and amount required' });
     }
 
+    // ⭐ ACCOUNT VALIDATION CHECK
+    if (!(await checkAccountExists(accountNo))) {
+        return res.status(404).json({ success: false, error: `Error: Account No. ${accountNo} not found or inactive.` });
+    }
+
     // Call the Stored Procedure
     const [rows] = await pool.query(
       'CALL sp_deposit(?, ?, ?, ?)', 
@@ -330,6 +353,12 @@ app.post('/api/transactions/withdraw', async (req, res) => {
     if (!accountNo || !amount || amount <= 0) {
       return res.status(400).json({ success: false, error: 'Valid account number and amount required' });
     }
+    
+    // ⭐ ACCOUNT VALIDATION CHECK
+    if (!(await checkAccountExists(accountNo))) {
+        return res.status(404).json({ success: false, error: `Error: Account No. ${accountNo} not found or inactive.` });
+    }
+
 
     const [rows] = await pool.query(
       'CALL sp_withdraw(?, ?, ?, ?)', 
@@ -392,6 +421,14 @@ app.post('/api/transactions/transfer', async (req, res) => {
     }
     if (fromAccount == toAccount) {
         return res.status(400).json({ success: false, error: 'Cannot transfer to the same account' });
+    }
+    
+    // ⭐ ACCOUNT VALIDATION CHECK: Check both accounts
+    if (!(await checkAccountExists(fromAccount))) {
+        return res.status(404).json({ success: false, error: `Error: Sender Account No. ${fromAccount} not found or inactive.` });
+    }
+    if (!(await checkAccountExists(toAccount))) {
+        return res.status(404).json({ success: false, error: `Error: Receiver Account No. ${toAccount} not found or inactive.` });
     }
 
     // 2. Call Stored Procedure

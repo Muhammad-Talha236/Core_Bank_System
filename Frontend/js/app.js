@@ -76,48 +76,60 @@ class CoreBankingApp {
         });
     }
 
-    async showSection(sectionName) {
-    // Hide all sections
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
+   async showSection(sectionName) {
+        const currentActiveSection = document.querySelector('.content-section.active');
+        const nextSection = document.getElementById(sectionName);
 
-    // Show selected section
-    document.getElementById(sectionName).classList.add('active');
+        // 1. Fade out current section (if one exists)
+        if (currentActiveSection && currentActiveSection.id !== sectionName) {
+            currentActiveSection.classList.remove('animate__fadeIn', 'animate__animated', 'animate__fadeInUp');
+            currentActiveSection.classList.add('animate__animated', 'animate__fadeOut', 'animate__faster'); // added faster for quicker transition
 
-    // Update active nav link
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
-    document.querySelector(`[href="#${sectionName}"]`).classList.add('active');
+            await new Promise(resolve => {
+                // Wait for the fadeOut animation to finish (approx 300ms for 'faster')
+                setTimeout(() => {
+                    currentActiveSection.classList.remove('active', 'animate__animated', 'animate__fadeOut', 'animate__faster');
+                    resolve();
+                }, 300); 
+            });
+        } else if (currentActiveSection && currentActiveSection.id === sectionName) {
+            // Already on this section, do nothing
+            return;
+        }
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+        // 2. Show and Fade in selected section
+        nextSection.classList.add('active', 'animate__animated', 'animate__fadeIn', 'animate__faster');
 
-    // Load section data
-    switch (sectionName) {
-        case 'dashboard':
-            await this.loadDashboard();
-            break;
-        case 'customers':
-            await this.loadCustomers();
-            break;
-        case 'accounts':
-            await this.loadAccounts();
-            break;
-        // case 'transactions':
-        //     await this.loadTransactions(); // This calls the function now
-        //     break;
-        case 'audit':
-            await this.loadAuditLogs();
-            break;
-            case 'team': // ADDED NEW SECTION CASE
-            // Static content, no data loading needed
-            break;
+        // Update active nav link
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        document.querySelector(`[href="#${sectionName}"]`).classList.add('active');
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Load section data
+        switch (sectionName) {
+            case 'dashboard':
+                await this.loadDashboard();
+                break;
+            case 'customers':
+                await this.loadCustomers();
+                break;
+            case 'accounts':
+                await this.loadAccounts();
+                break;
+            case 'audit':
+                await this.loadAuditLogs();
+                break;
+            case 'team': 
+                // Static content, no data loading needed
+                break;
+        }
+
+        this.currentSection = sectionName;
     }
-
-    this.currentSection = sectionName;
-}
 
     // Loading utilities
     showLoading() {
