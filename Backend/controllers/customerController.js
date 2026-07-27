@@ -1,28 +1,27 @@
 const pool = require('../db/connection');
 const crypto = require('crypto');
 
-// helper: 8-digit as string (10,000,000 .. 99,999,999)
+// helper: 8-digit account number (10,000,000 .. 99,999,999)
 function generateAccountNumber() {
-    try {
-        return String(crypto.randomInt(10000000, 100000000)); // upper bound exclusive
-    } catch (e) {
-        // fallback
-        return String(Math.floor(Math.random() * 90000000) + 10000000);
-    }
+  try {
+    return crypto.randomInt(10000000, 100000000); // upper bound exclusive
+  } catch (e) {
+    return Math.floor(Math.random() * 90000000) + 10000000;
+  }
 }
 
 // Get all customers
 exports.getAllCustomers = async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT 
-        CustomerID as CustID,
-        Name,
-        CNIC,
-        Contact,
-        Gmail
-      FROM Customer
-      ORDER BY CustomerID DESC
+    const { rows } = await pool.query(`
+      SELECT
+        "CustomerID" AS "CustID",
+        "Name",
+        "CNIC",
+        "Contact",
+        "Gmail"
+      FROM "Customer"
+      ORDER BY "CustomerID" DESC
     `);
     res.json(rows);
   } catch (error) {
@@ -36,43 +35,62 @@ exports.addCustomer = async (req, res) => {
   const { name, cnic, contact, gmail, Gmail } = req.body;
   const email = gmail ?? Gmail ?? null;
 
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
+  if (!name || !cnic || !contact || !email) {
+    return res.status(400).json({ error: 'name, cnic, contact and gmail are all required' });
+  }
 
-    const [result] = await conn.query(
-      'INSERT INTO Customer (Name, CNIC, Contact, Gmail) VALUES (?, ?, ?, ?)',
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const custResult = await client.query(
+      `INSERT INTO "Customer" ("Name", "CNIC", "Contact", "Gmail")
+       VALUES ($1, $2, $3, $4)
+       RETURNING "CustomerID"`,
       [name, cnic, contact, email]
     );
+    const customerId = custResult.rows[0].CustomerID;
 
-    const customerId = result.insertId;
-
-    // generate unique 8-digit account number (retry on duplicate)
+    // generate unique 8-digit account number (retry on collision)
     let accountNo;
     const maxAttempts = 5;
     let attempts = 0;
-    while (attempts < maxAttempts) {
+    let inserted = false;
+
+    while (attempts < maxAttempts && !inserted) {
       accountNo = generateAccountNumber();
       try {
-        await conn.query(
-          'INSERT INTO Account (AccountNo, CustomerID, Type, Balance, Status) VALUES (?, ?, ?, ?, ?)',
+        await client.query(
+          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status")
+           VALUES ($1, $2, $3, $4, $5)`,
           [accountNo, customerId, 'Savings', 0.00, 'Active']
         );
-        break; // success
+        inserted = true;
       } catch (err) {
-        if (err && err.code === 'ER_DUP_ENTRY') {
+        if (err.code === '23505') { // unique_violation
           attempts++;
-          continue; // try again
+          continue;
         }
         throw err;
       }
     }
 
-    if (attempts === maxAttempts) {
+    if (!inserted) {
       throw new Error('Failed to generate unique account number after multiple attempts');
     }
 
-    await conn.commit();
+    await client.query(
+      `INSERT INTO "SavingAccount" ("AccountNo", "InterestRate") VALUES ($1, $2)`,
+      [accountNo, 3.50]
+    );
+
+    await client.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ($1, $2, $3, $4, $5)`,
+      ['INSERT', 'Account', accountNo, name, `Account created for customer ${customerId}`]
+    );
+
+    await client.query('COMMIT');
 
     res.json({
       success: true,
@@ -81,10 +99,21 @@ exports.addCustomer = async (req, res) => {
       message: 'Customer and account created successfully'
     });
   } catch (error) {
-    await conn.rollback().catch(() => {});
+    await client.query('ROLLBACK');
     console.error('Error adding customer:', error);
+
+    if (error.code === '23505') {
+      const constraintName = (error.constraint || '').toLowerCase();
+      if (constraintName.includes('cnic')) {
+        return res.status(400).json({ error: 'Customer with this CNIC already exists' });
+      }
+      if (constraintName.includes('gmail')) {
+        return res.status(400).json({ error: 'Customer with this email already exists' });
+      }
+      return res.status(400).json({ error: 'Duplicate entry found' });
+    }
     res.status(500).json({ error: error.message });
   } finally {
-    conn.release();
+    client.release();
   }
 };
