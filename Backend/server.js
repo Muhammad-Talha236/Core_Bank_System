@@ -8,6 +8,7 @@ const customerRoutes = require('./routes/customer');
 const accountRoutes = require('./routes/account');
 
 const transactionRoutes = require('./routes/transaction');
+const auditRoutes = require('./routes/audit');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -15,6 +16,8 @@ app.use(bodyParser.json());
 app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/audit', auditRoutes);
+
 
 
 app.get('/api/health', async (req, res) => {
