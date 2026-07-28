@@ -1,6 +1,9 @@
 const pool = require('../../config/db');
 const crypto = require('crypto');
 
+// Roles that can see every branch's data (system-wide access)
+const SYSTEM_WIDE_ROLES = ['SuperAdmin', 'Auditor'];
+
 function generateAccountNumber() {
   try {
     return crypto.randomInt(10000000, 100000000); // 8-digit, upper bound exclusive
@@ -9,21 +12,32 @@ function generateAccountNumber() {
   }
 }
 
-// Get all accounts (with customer name attached)
+// Get all accounts - branch-scoped unless the caller has system-wide access
 exports.getAllAccounts = async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    const isSystemWide = SYSTEM_WIDE_ROLES.includes(req.employee.roleName);
+
+    const query = `
       SELECT
         a."AccountNo",
         a."CustomerID" AS "CustID",
         c."Name" AS "CustomerName",
         a."Type",
         a."Balance",
-        a."Status"
+        a."Status",
+        a."BranchID",
+        b."BranchName"
       FROM "Account" a
       JOIN "Customer" c ON a."CustomerID" = c."CustomerID"
+      LEFT JOIN "Branch" b ON a."BranchID" = b."BranchID"
+      ${isSystemWide ? '' : 'WHERE a."BranchID" = $1'}
       ORDER BY a."AccountNo" DESC
-    `);
+    `;
+
+    const { rows } = isSystemWide
+      ? await pool.query(query)
+      : await pool.query(query, [req.employee.branchId]);
+
     res.json(rows);
   } catch (error) {
     console.error('Error fetching accounts:', error);
@@ -31,13 +45,20 @@ exports.getAllAccounts = async (req, res) => {
   }
 };
 
-// Check if a customer already has an account
+// Check if a customer already has an account (branch-scoped same as above)
 exports.checkCustomerAccount = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT "AccountNo" FROM "Account" WHERE "CustomerID" = $1`,
-      [req.params.customerId]
-    );
+    const isSystemWide = SYSTEM_WIDE_ROLES.includes(req.employee.roleName);
+
+    const query = isSystemWide
+      ? `SELECT "AccountNo" FROM "Account" WHERE "CustomerID" = $1`
+      : `SELECT "AccountNo" FROM "Account" WHERE "CustomerID" = $1 AND "BranchID" = $2`;
+
+    const params = isSystemWide
+      ? [req.params.customerId]
+      : [req.params.customerId, req.employee.branchId];
+
+    const { rows } = await pool.query(query, params);
     res.json({ hasAccount: rows.length > 0, accounts: rows });
   } catch (error) {
     console.error('Error checking account:', error);
@@ -46,8 +67,10 @@ exports.checkCustomerAccount = async (req, res) => {
 };
 
 // Create new account for an existing customer
+// The account is automatically assigned to the logged-in employee's branch,
+// UNLESS the employee is SuperAdmin, in which case they may specify any branchId.
 exports.createAccount = async (req, res) => {
-  const { custID, type, balance } = req.body;
+  const { custID, type, balance, branchId } = req.body;
 
   if (!custID || !type) {
     return res.status(400).json({ error: 'custID and type are required' });
@@ -63,6 +86,15 @@ exports.createAccount = async (req, res) => {
     return res.status(400).json({ error: 'Initial balance cannot be negative' });
   }
 
+  // Non-SuperAdmins always create accounts at their own branch, no exceptions
+  const targetBranchId = req.employee.roleName === 'SuperAdmin'
+    ? (branchId || req.employee.branchId)
+    : req.employee.branchId;
+
+  if (!targetBranchId) {
+    return res.status(400).json({ error: 'No branch assigned - cannot create account' });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -76,13 +108,13 @@ exports.createAccount = async (req, res) => {
       accountNo = generateAccountNumber();
       try {
         await client.query(
-          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status")
-           VALUES ($1, $2, $3, $4, 'Active')`,
-          [accountNo, custID, accountType, initialBalance]
+          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status", "BranchID")
+           VALUES ($1, $2, $3, $4, 'Active', $5)`,
+          [accountNo, custID, accountType, initialBalance, targetBranchId]
         );
         inserted = true;
       } catch (err) {
-        if (err.code === '23505') { // unique_violation - retry with new number
+        if (err.code === '23505') {
           attempts++;
           continue;
         }
@@ -109,7 +141,7 @@ exports.createAccount = async (req, res) => {
     await client.query(
       `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
        VALUES ($1, $2, $3, $4, $5)`,
-      ['INSERT', 'Account', accountNo, 'system', `Account created for customer ${custID}, balance: ${initialBalance}`]
+      ['INSERT', 'Account', accountNo, req.employee.name, `Account created for customer ${custID} at branch ${targetBranchId}, balance: ${initialBalance}`]
     );
 
     await client.query('COMMIT');
@@ -117,14 +149,15 @@ exports.createAccount = async (req, res) => {
     res.json({
       success: true,
       accountNo,
+      branchId: targetBranchId,
       message: 'Account created successfully'
     });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating account:', error);
 
-    if (error.code === '23503') { // foreign_key_violation
-      return res.status(400).json({ error: 'Customer with this ID does not exist' });
+    if (error.code === '23503') {
+      return res.status(400).json({ error: 'Customer or branch with this ID does not exist' });
     }
     res.status(500).json({ error: error.message });
   } finally {
