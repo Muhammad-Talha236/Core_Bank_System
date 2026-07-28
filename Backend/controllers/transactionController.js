@@ -11,6 +11,17 @@ async function getCustomerNameForAccount(client, accountNo) {
   return rows.length > 0 ? rows[0].Name : 'Unknown';
 }
 
+// Write one immutable ledger row. This is the audit-proof source of truth -
+// it is NEVER updated or deleted after being written. Corrections happen by
+// writing a new, opposite ledger entry (a reversal), not by editing this one.
+async function writeLedgerEntry(client, { transId, accountNo, entryType, amount, balanceAfter }) {
+  await client.query(
+    `INSERT INTO "LedgerEntry" ("TransID", "AccountNo", "EntryType", "Amount", "BalanceAfter")
+     VALUES ($1, $2, $3, $4, $5)`,
+    [transId, accountNo, entryType, amount, balanceAfter]
+  );
+}
+
 // ---------- DEPOSIT ----------
 exports.deposit = async (req, res) => {
   const { accountNo, amount, user } = req.body;
@@ -45,10 +56,10 @@ exports.deposit = async (req, res) => {
     );
 
     const { rows: transRows } = await client.query(
-      `INSERT INTO "TransactionLog" ("ToAccount", "Amount", "Type", "Status", "UserName")
-       VALUES ($1, $2, 'Deposit', 'Success', $3)
+      `INSERT INTO "TransactionLog" ("ToAccount", "Amount", "Type", "Status", "UserName", "Description")
+       VALUES ($1, $2, 'Deposit', 'Success', $3, $4)
        RETURNING "TransID"`,
-      [accountNo, amount, username]
+      [accountNo, amount, username, `Cash deposit of ${amount}`]
     );
     const transId = transRows[0].TransID;
 
@@ -56,6 +67,11 @@ exports.deposit = async (req, res) => {
       `INSERT INTO "Deposit" ("TransID", "Amount", "DepositMethod") VALUES ($1, $2, $3)`,
       [transId, amount, method]
     );
+
+    // Ledger: money coming IN to this account = CREDIT
+    await writeLedgerEntry(client, {
+      transId, accountNo, entryType: 'CREDIT', amount, balanceAfter: newBalance
+    });
 
     await client.query(
       `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
@@ -125,10 +141,10 @@ exports.withdraw = async (req, res) => {
     );
 
     const { rows: transRows } = await client.query(
-      `INSERT INTO "TransactionLog" ("FromAccount", "Amount", "Type", "Status", "UserName")
-       VALUES ($1, $2, 'Withdrawal', 'Success', $3)
+      `INSERT INTO "TransactionLog" ("FromAccount", "Amount", "Type", "Status", "UserName", "Description")
+       VALUES ($1, $2, 'Withdrawal', 'Success', $3, $4)
        RETURNING "TransID"`,
-      [accountNo, amount, username]
+      [accountNo, amount, username, `Counter withdrawal of ${amount}`]
     );
     const transId = transRows[0].TransID;
 
@@ -136,6 +152,11 @@ exports.withdraw = async (req, res) => {
       `INSERT INTO "Withdrawal" ("TransID", "Amount", "WithdrawalMethod") VALUES ($1, $2, $3)`,
       [transId, amount, method]
     );
+
+    // Ledger: money going OUT of this account = DEBIT
+    await writeLedgerEntry(client, {
+      transId, accountNo, entryType: 'DEBIT', amount, balanceAfter: newBalance
+    });
 
     await client.query(
       `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
@@ -222,10 +243,10 @@ exports.transfer = async (req, res) => {
     await client.query(`UPDATE "Account" SET "Balance" = $1 WHERE "AccountNo" = $2`, [toNewBalance, toAccount]);
 
     const { rows: transRows } = await client.query(
-      `INSERT INTO "TransactionLog" ("FromAccount", "ToAccount", "Amount", "Type", "Status", "UserName")
-       VALUES ($1, $2, $3, 'Transfer', 'Success', $4)
+      `INSERT INTO "TransactionLog" ("FromAccount", "ToAccount", "Amount", "Type", "Status", "UserName", "Description")
+       VALUES ($1, $2, $3, 'Transfer', 'Success', $4, $5)
        RETURNING "TransID"`,
-      [fromAccount, toAccount, amount, username]
+      [fromAccount, toAccount, amount, username, `Transfer of ${amount} from ${fromAccount} to ${toAccount}`]
     );
     const transId = transRows[0].TransID;
 
@@ -233,6 +254,15 @@ exports.transfer = async (req, res) => {
       `INSERT INTO "Transfer" ("TransID", "Amount", "TransferType") VALUES ($1, $2, 'Internal')`,
       [transId, amount]
     );
+
+    // Ledger: two entries for one transfer - this is the actual double-entry part.
+    // DEBIT the sender, CREDIT the receiver. They must always balance to zero.
+    await writeLedgerEntry(client, {
+      transId, accountNo: fromAccount, entryType: 'DEBIT', amount, balanceAfter: fromNewBalance
+    });
+    await writeLedgerEntry(client, {
+      transId, accountNo: toAccount, entryType: 'CREDIT', amount, balanceAfter: toNewBalance
+    });
 
     await client.query(
       `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
@@ -257,5 +287,35 @@ exports.transfer = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   } finally {
     client.release();
+  }
+};
+
+// ---------- LEDGER HISTORY (new) ----------
+// Returns the full, immutable ledger trail for one account - this is what
+// an auditor or bank statement would actually be built from.
+exports.getAccountLedger = async (req, res) => {
+  const { accountNo } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         le."EntryID",
+         le."TransID",
+         le."EntryType",
+         le."Amount",
+         le."BalanceAfter",
+         le."CreatedAt",
+         tl."Type" AS "TransactionType",
+         tl."UserName",
+         tl."Description"
+       FROM "LedgerEntry" le
+       JOIN "TransactionLog" tl ON le."TransID" = tl."TransID"
+       WHERE le."AccountNo" = $1
+       ORDER BY le."CreatedAt" DESC`,
+      [accountNo]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching ledger:', error);
+    res.status(500).json({ error: error.message });
   }
 };

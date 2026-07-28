@@ -6,6 +6,7 @@ const path = require('path');
 
 const pool = require('./db/connection');
 
+const authRoutes = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const accountRoutes = require('./routes/account');
 const transactionRoutes = require('./routes/transaction');
@@ -19,6 +20,7 @@ app.use(bodyParser.json());
 app.use('/frontend', express.static(path.join(__dirname, '..', 'Frontend')));
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
