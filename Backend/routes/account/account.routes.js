@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const accountController = require('../controllers/accountController');
+const accountController = require('../../controllers/account/account.controller');
 
 router.get('/', accountController.getAllAccounts);
 router.get('/check/:customerId', accountController.checkCustomerAccount);

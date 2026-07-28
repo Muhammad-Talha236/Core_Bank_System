@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 
 // Get all audit logs (most recent first, capped at 100)
 exports.getAllAuditLogs = async (req, res) => {

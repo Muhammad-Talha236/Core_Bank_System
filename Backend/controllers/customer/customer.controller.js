@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 const crypto = require('crypto');
 
 // helper: 8-digit account number (10,000,000 .. 99,999,999)

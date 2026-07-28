@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 const crypto = require('crypto');
 
 function generateAccountNumber() {

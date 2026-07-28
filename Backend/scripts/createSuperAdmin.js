@@ -9,7 +9,7 @@
 
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const pool = require('../db/connection');
+const pool = require('../config/db');
 
 async function createSuperAdmin() {
   const [, , name, email, password] = process.argv;
