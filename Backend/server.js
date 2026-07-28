@@ -4,15 +4,15 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 
-const pool = require('./db/connection');
+const pool = require('./config/db');
 
-const authRoutes = require('./routes/auth');
-const employeeRoutes = require('./routes/employee');
-const branchRoutes = require('./routes/branch');
-const customerRoutes = require('./routes/customer');
-const accountRoutes = require('./routes/account');
-const transactionRoutes = require('./routes/transaction');
-const auditRoutes = require('./routes/audit');
+const authRoutes = require('./routes/auth/auth.routes');
+const employeeRoutes = require('./routes/superadmin/employee.routes');
+const branchRoutes = require('./routes/superadmin/branch.routes');
+const customerRoutes = require('./routes/customer/customer.routes');
+const accountRoutes = require('./routes/account/account.routes');
+const transactionRoutes = require('./routes/transaction/transaction.routes');
+const auditRoutes = require('./routes/audit/audit.routes');
 
 const app = express();
 app.use(cors());
