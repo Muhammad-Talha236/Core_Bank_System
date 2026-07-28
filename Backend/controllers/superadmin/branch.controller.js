@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 
 // Get all branches
 exports.getAllBranches = async (req, res) => {

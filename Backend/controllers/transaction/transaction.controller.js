@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 
 // Fetch customer name for an account (used to build response objects)
 async function getCustomerNameForAccount(client, accountNo) {

@@ -1,4 +1,4 @@
-const pool = require('../db/connection');
+const pool = require('../../config/db');
 const bcrypt = require('bcryptjs');
 
 // Get all employees (with role and branch names attached)
