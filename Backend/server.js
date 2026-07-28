@@ -7,6 +7,8 @@ const path = require('path');
 const pool = require('./db/connection');
 
 const authRoutes = require('./routes/auth');
+const employeeRoutes = require('./routes/employee');
+const branchRoutes = require('./routes/branch');
 const customerRoutes = require('./routes/customer');
 const accountRoutes = require('./routes/account');
 const transactionRoutes = require('./routes/transaction');
@@ -21,6 +23,8 @@ app.use('/frontend', express.static(path.join(__dirname, '..', 'Frontend')));
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/branches', branchRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
