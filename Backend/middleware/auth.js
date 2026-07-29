@@ -14,6 +14,11 @@ function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.type === 'customer') {
+      return res.status(403).json({ error: 'Invalid token type for this endpoint' });
+    }
+
     req.employee = decoded;
     next();
   } catch (err) {

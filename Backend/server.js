@@ -14,6 +14,10 @@ const accountRoutes = require('./routes/account/account.routes');
 const transactionRoutes = require('./routes/transaction/transaction.routes');
 const auditRoutes = require('./routes/audit/audit.routes');
 
+// Customer self-service portal (separate from staff-facing routes above)
+const customerAuthRoutes = require('./routes/customerPortal/customerAuth.routes');
+const customerPortalRoutes = require('./routes/customerPortal/customerPortal.routes');
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
@@ -21,7 +25,7 @@ app.use(bodyParser.json());
 // Serve frontend static files
 app.use('/frontend', express.static(path.join(__dirname, '..', 'Frontend')));
 
-// API routes
+// Staff-facing API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/branches', branchRoutes);
@@ -29,6 +33,10 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/audit', auditRoutes);
+
+// Customer self-service portal routes
+app.use('/api/customer-auth', customerAuthRoutes);
+app.use('/api/customer-portal', customerPortalRoutes);
 
 // Health check
 app.get('/api/health', async (req, res) => {
