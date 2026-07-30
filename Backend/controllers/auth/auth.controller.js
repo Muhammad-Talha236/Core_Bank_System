@@ -89,6 +89,7 @@ exports.login = async (req, res) => {
     );
 
     const tokenPayload = {
+      type: 'employee',
       employeeId: employee.EmployeeID,
       name: employee.Name,
       roleName: employee.RoleName,
