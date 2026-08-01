@@ -57,16 +57,22 @@ exports.addCustomer = async (req, res) => {
     let attempts = 0;
     let inserted = false;
 
+    // SAVEPOINT so a failed insert attempt only undoes itself, not the
+    // whole transaction (Postgres aborts the full transaction on error,
+    // unlike MySQL) - lets the retry loop actually work.
     while (attempts < maxAttempts && !inserted) {
       accountNo = generateAccountNumber();
+      await client.query('SAVEPOINT before_account_insert');
       try {
         await client.query(
-          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status")
-           VALUES ($1, $2, $3, $4, $5)`,
-          [accountNo, customerId, 'Savings', 0.00, 'Active']
+          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status", "Nickname")
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [accountNo, customerId, 'Savings', 0.00, 'Active', 'Primary Savings']
         );
+        await client.query('RELEASE SAVEPOINT before_account_insert');
         inserted = true;
       } catch (err) {
+        await client.query('ROLLBACK TO SAVEPOINT before_account_insert');
         if (err.code === '23505') { // unique_violation
           attempts++;
           continue;

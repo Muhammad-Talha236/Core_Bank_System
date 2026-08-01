@@ -25,6 +25,17 @@ async function writeLedgerEntry(client, { transId, accountNo, entryType, amount,
   );
 }
 
+
+// Term Deposits are locked funds - they cannot be touched via normal
+// deposit/withdraw/transfer. Use the dedicated close-term-deposit endpoint instead.
+async function rejectIfTermDeposit(client, accountNo, res) {
+  const { rows } = await client.query(`SELECT "Type" FROM "Account" WHERE "AccountNo" = $1`, [accountNo]);
+  if (rows.length > 0 && rows[0].Type === 'TermDeposit') {
+    return true;
+  }
+  return false;
+}
+
 // ---------- DEPOSIT ----------
 exports.deposit = async (req, res) => {
   const { accountNo, amount, user } = req.body;
@@ -48,6 +59,11 @@ exports.deposit = async (req, res) => {
     if (accRows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Account not found' });
+    }
+
+    if (await rejectIfTermDeposit(client, accountNo, res)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'This is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }
 
     if (requiresApproval) {
@@ -123,6 +139,11 @@ exports.withdraw = async (req, res) => {
     if (accRows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Account not found' });
+    }
+
+    if (await rejectIfTermDeposit(client, accountNo, res)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'This is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }
 
     const currentBalance = parseFloat(accRows[0].Balance);
@@ -216,6 +237,11 @@ exports.transfer = async (req, res) => {
     if (fromRows.length === 0 || toRows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'Sender or receiver account not found' });
+    }
+
+    if (await rejectIfTermDeposit(client, fromAccount, res)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'The sender is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }
 
     const fromBalance = parseFloat(fromRows[0].Balance);
