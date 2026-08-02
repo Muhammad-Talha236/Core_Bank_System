@@ -18,9 +18,9 @@ export default function Layout() {
   const visibleItems = NAV_ITEMS.filter(item => !item.roles || item.roles.includes(employee.role));
 
   return (
-    <div className="min-h-screen flex bg-paper">
+    <div className="h-screen flex bg-paper overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-ink-900 flex flex-col shrink-0">
+      <aside className="w-64 bg-ink-900 flex flex-col shrink-0 h-full overflow-y-auto">
         <div className="px-6 py-6 border-b border-white/10">
           <p className="font-display text-xl text-paper">Meridian Bank</p>
           <p className="font-mono text-[10px] tracking-widest text-brass uppercase mt-1">Core Banking</p>
@@ -61,7 +61,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto h-full">
         <Outlet />
       </main>
     </div>

@@ -6,6 +6,8 @@ import Accounts from './pages/staff/Accounts';
 import Transactions from './pages/staff/Transactions';
 import Approvals from './pages/staff/Approvals';
 import AuditLog from './pages/staff/AuditLog';
+import Employees from './pages/staff/Employees';
+import Branches from './pages/staff/Branches';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -35,7 +37,22 @@ function App() {
           }
         />
         <Route path="audit" element={<AuditLog />} />
-        {/* Employees, Branches added next */}
+        <Route
+          path="employees"
+          element={
+            <ProtectedRoute roles={['SuperAdmin']}>
+              <Employees />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="branches"
+          element={
+            <ProtectedRoute roles={['SuperAdmin']}>
+              <Branches />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

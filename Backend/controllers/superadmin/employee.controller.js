@@ -115,7 +115,28 @@ exports.updateEmployeeStatus = async (req, res) => {
     return res.status(400).json({ error: 'status must be Active, Suspended, or Locked' });
   }
 
+  // Nobody can suspend/lock their own account - this is how real banking
+  // systems avoid an accidental (or malicious) self-lockout.
+  if (parseInt(employeeId) === req.employee.employeeId && status !== 'Active') {
+    return res.status(403).json({ error: 'You cannot suspend or lock your own account' });
+  }
+
   try {
+    // Never allow the last remaining active SuperAdmin to be deactivated -
+    // that would leave nobody able to manage the system at all.
+    if (status !== 'Active') {
+      const { rows: targetRows } = await pool.query(`SELECT r."RoleName" FROM "Employee" e JOIN "Role" r ON e."RoleID" = r."RoleID" WHERE e."EmployeeID" = $1`, [employeeId]);
+      if (targetRows.length > 0 && targetRows[0].RoleName === 'SuperAdmin') {
+        const { rows: activeCountRows } = await pool.query(
+          `SELECT COUNT(*) FROM "Employee" e JOIN "Role" r ON e."RoleID" = r."RoleID"
+           WHERE r."RoleName" = 'SuperAdmin' AND e."Status" = 'Active'`
+        );
+        if (parseInt(activeCountRows[0].count) <= 1) {
+          return res.status(400).json({ error: 'Cannot deactivate the last active SuperAdmin. Promote another employee to SuperAdmin first.' });
+        }
+      }
+    }
+
     const resetAttempts = status === 'Active';
 
     const { rows } = await pool.query(

@@ -28,8 +28,8 @@ export default function AuditLog() {
       {error && <p className="text-ledger-red">{error}</p>}
 
       {!loading && !error && (
-        <div className="bg-white border border-paper-line rounded-sm overflow-hidden">
-          <table className="w-full ledger-table">
+        <div className="bg-white border border-paper-line rounded-sm overflow-x-auto">
+          <table className="w-full ledger-table min-w-[900px]">
             <thead>
               <tr className="bg-ink-900 text-paper text-left text-sm">
                 <th className="px-5 py-3 font-medium">ID</th>
@@ -53,7 +53,9 @@ export default function AuditLog() {
                   <td className="px-5 py-3">{log.UserName}</td>
                   <td className="px-5 py-3 text-slate-soft max-w-xs truncate" title={log.Details}>{log.Details || '—'}</td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-soft whitespace-nowrap">
-                    {new Date(log.CreatedAt).toLocaleString()}
+                    {new Date(log.CreatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    <br />
+                    <span className="text-[10px]">{new Date(log.CreatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                   </td>
                 </tr>
               ))}
