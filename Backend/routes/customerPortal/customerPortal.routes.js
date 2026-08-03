@@ -8,5 +8,8 @@ router.use(verifyCustomerToken); // every route below requires a logged-in custo
 router.get('/accounts', customerPortalController.getMyAccounts);
 router.get('/ledger/:accountNo', customerPortalController.getMyLedger);
 router.post('/transfer', customerPortalController.transfer);
+router.get('/billers', customerPortalController.getBillers);
+router.post('/bill-payment', customerPortalController.payBill);
+router.get('/bill-payments', customerPortalController.getMyBillPayments);
 
 module.exports = router;

@@ -11,11 +11,16 @@ import Branches from './pages/staff/Branches';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import CustomerLogin from './pages/customer/Login';
+import CustomerRegister from './pages/customer/Register';
+import CustomerDashboard from './pages/customer/Dashboard';
+import CustomerProtectedRoute from './components/CustomerProtectedRoute';
+
 function App() {
   return (
     <Routes>
+      {/* Staff */}
       <Route path="/login" element={<Login />} />
-
       <Route
         path="/dashboard"
         element={
@@ -54,6 +59,18 @@ function App() {
           }
         />
       </Route>
+
+      {/* Customer self-service portal */}
+      <Route path="/customer/login" element={<CustomerLogin />} />
+      <Route path="/customer/register" element={<CustomerRegister />} />
+      <Route
+        path="/customer/portal"
+        element={
+          <CustomerProtectedRoute>
+            <CustomerDashboard />
+          </CustomerProtectedRoute>
+        }
+      />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

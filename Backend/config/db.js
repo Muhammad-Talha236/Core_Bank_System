@@ -17,6 +17,13 @@ const pool = process.env.DATABASE_URL
       port: process.env.DB_PORT || 5432
     });
 
+// Neon (serverless Postgres) suspends its compute after a few minutes of
+// inactivity. The first query after that can occasionally hit a stale pooled
+// connection and throw ECONNRESET once. Keeping max idle time short means
+// the pool recycles connections before Neon closes them from its side.
+pool.options.idleTimeoutMillis = 10000;
+pool.options.max = 10;
+
 pool.on('error', (err) => {
   // Idle client errors (e.g. Neon closing an idle connection) shouldn't
   // crash the whole app — log and let the pool recover.

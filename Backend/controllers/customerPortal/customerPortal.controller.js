@@ -84,6 +84,11 @@ exports.transfer = async (req, res) => {
     return res.status(403).json({ success: false, error: 'You can only transfer from your own account' });
   }
 
+  const { rows: typeCheck } = await pool.query(`SELECT "Type" FROM "Account" WHERE "AccountNo" = $1`, [fromAccount]);
+  if (typeCheck.length > 0 && typeCheck[0].Type === 'TermDeposit') {
+    return res.status(400).json({ success: false, error: 'Term Deposits are locked until maturity. Visit a branch to close it early.' });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -152,5 +157,124 @@ exports.transfer = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   } finally {
     client.release();
+  }
+};
+
+// GET /api/customer-portal/billers
+exports.getBillers = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT "BillerID", "BillerName", "BillerType" FROM "Biller" WHERE "IsActive" = TRUE ORDER BY "BillerType", "BillerName"`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching billers:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// POST /api/customer-portal/bill-payment
+// Pays a bill from one of the customer's own accounts. This is money
+// leaving the bank entirely (to an external biller), so it's a single
+// DEBIT ledger entry, not a transfer between two of our accounts.
+exports.payBill = async (req, res) => {
+  const { fromAccount, billerId, consumerNumber, amount } = req.body;
+  const customerId = req.customer.customerId;
+
+  if (!fromAccount || !billerId || !consumerNumber || !amount || isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ success: false, error: 'fromAccount, billerId, consumerNumber and a valid amount are required' });
+  }
+
+  const owns = await accountBelongsToCustomer(fromAccount, customerId);
+  if (!owns) {
+    return res.status(403).json({ success: false, error: 'You can only pay bills from your own account' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: accRows } = await client.query(`SELECT "Balance", "Type" FROM "Account" WHERE "AccountNo" = $1 FOR UPDATE`, [fromAccount]);
+    if (accRows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Account not found' });
+    }
+    if (accRows[0].Type === 'TermDeposit') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Term Deposits are locked until maturity and cannot be used for bill payments' });
+    }
+
+    const currentBalance = parseFloat(accRows[0].Balance);
+    if (currentBalance < amount) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Insufficient balance' });
+    }
+
+    const { rows: billerRows } = await client.query(`SELECT "BillerName" FROM "Biller" WHERE "BillerID" = $1 AND "IsActive" = TRUE`, [billerId]);
+    if (billerRows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Invalid or inactive biller' });
+    }
+
+    const newBalance = currentBalance - parseFloat(amount);
+    await client.query(`UPDATE "Account" SET "Balance" = $1 WHERE "AccountNo" = $2`, [newBalance, fromAccount]);
+
+    const { rows: transRows } = await client.query(
+      `INSERT INTO "TransactionLog" ("FromAccount", "Amount", "Type", "Status", "UserName", "Description", "InitiatedByCustomer", "ApprovalStatus")
+       VALUES ($1, $2, 'BillPayment', 'Success', $3, $4, $5, 'Auto-Approved')
+       RETURNING "TransID"`,
+      [fromAccount, amount, req.customer.name, `Bill payment to ${billerRows[0].BillerName} (Consumer #${consumerNumber})`, customerId]
+    );
+    const transId = transRows[0].TransID;
+
+    await client.query(
+      `INSERT INTO "BillPayment" ("TransID", "BillerID", "ConsumerNumber", "Amount", "PaidByCustomerID")
+       VALUES ($1, $2, $3, $4, $5)`,
+      [transId, billerId, consumerNumber, amount, customerId]
+    );
+
+    await client.query(
+      `INSERT INTO "LedgerEntry" ("TransID", "AccountNo", "EntryType", "Amount", "BalanceAfter") VALUES ($1, $2, 'DEBIT', $3, $4)`,
+      [transId, fromAccount, amount, newBalance]
+    );
+
+    await client.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('COMMIT', 'Account', $1, $2, $3)`,
+      [fromAccount, req.customer.name, `Bill payment of ${amount} to ${billerRows[0].BillerName}`]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Payment of Rs ${amount} to ${billerRows[0].BillerName} successful`,
+      newBalance
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Bill payment error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// GET /api/customer-portal/bill-payments - this customer's payment history
+exports.getMyBillPayments = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT bp."BillPaymentID", bp."ConsumerNumber", bp."Amount", bp."PaidAt",
+              b."BillerName", b."BillerType"
+       FROM "BillPayment" bp
+       JOIN "Biller" b ON bp."BillerID" = b."BillerID"
+       WHERE bp."PaidByCustomerID" = $1
+       ORDER BY bp."PaidAt" DESC`,
+      [req.customer.customerId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching bill payment history:', error);
+    res.status(500).json({ error: error.message });
   }
 };

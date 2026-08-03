@@ -142,3 +142,44 @@ exports.me = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// PUT /api/auth/change-password - staff changes their own password
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT "PasswordHash" FROM "Employee" WHERE "EmployeeID" = $1`,
+      [req.employee.employeeId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const matches = await bcrypt.compare(currentPassword, rows[0].PasswordHash);
+    if (!matches) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(`UPDATE "Employee" SET "PasswordHash" = $1 WHERE "EmployeeID" = $2`, [newHash, req.employee.employeeId]);
+
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('UPDATE', 'Employee', $1, $2, 'Password changed by user')`,
+      [req.employee.employeeId, req.employee.name]
+    );
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};  
