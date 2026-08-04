@@ -51,9 +51,15 @@ export default function Layout() {
           {employee.branchName && (
             <p className="text-paper/50 text-xs mt-1">{employee.branchName}</p>
           )}
+          <NavLink
+            to="/dashboard/change-password"
+            className="mt-3 block text-xs text-paper/60 hover:text-brass transition"
+          >
+            Change Password
+          </NavLink>
           <button
             onClick={logout}
-            className="mt-3 w-full text-left text-xs text-paper/60 hover:text-ledger-red transition"
+            className="mt-2 w-full text-left text-xs text-paper/60 hover:text-ledger-red transition"
           >
             Sign out
           </button>

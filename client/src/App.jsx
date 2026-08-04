@@ -8,6 +8,7 @@ import Approvals from './pages/staff/Approvals';
 import AuditLog from './pages/staff/AuditLog';
 import Employees from './pages/staff/Employees';
 import Branches from './pages/staff/Branches';
+import ChangePassword from './pages/staff/ChangePassword';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -58,6 +59,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="change-password" element={<ChangePassword />} />
       </Route>
 
       {/* Customer self-service portal */}
