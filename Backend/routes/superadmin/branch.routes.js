@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const branchController = require('../../controllers/superadmin/branch.controller');
+const branchController = require('../../controllers/superadmin/branch.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 // Any logged-in employee can view branches (needed for dropdowns etc.)
