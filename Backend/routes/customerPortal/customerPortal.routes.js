@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const customerPortalController = require('../../controllers/customerPortal/customerPortal.controller');
+const customerPortalController = require('../../controllers/customerPortal/customerPortal.Controller');
 const { verifyCustomerToken } = require('../../middleware/customerAuth');
 
 router.use(verifyCustomerToken); // every route below requires a logged-in customer
