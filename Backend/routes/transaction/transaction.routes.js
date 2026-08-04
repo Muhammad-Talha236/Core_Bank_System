@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const transactionController = require('../../controllers/transaction/transaction.controller');
+const transactionController = require('../../controllers/transaction/transaction.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 const CAN_TRANSACT = ['SuperAdmin', 'Admin', 'BranchManager', 'Teller'];

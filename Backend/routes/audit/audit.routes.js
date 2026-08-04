@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const auditController = require('../../controllers/audit/audit.controller');
+const auditController = require('../../controllers/audit/audit.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 // Audit trail viewing - the roles whose job is oversight/compliance

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const employeeController = require('../../controllers/superadmin/employee.controller');
+const employeeController = require('../../controllers/superadmin/employee.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 // Every route here requires: logged in AND role = SuperAdmin

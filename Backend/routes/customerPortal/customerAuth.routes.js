@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const customerAuthController = require('../../controllers/customerPortal/customerAuth.Controller');
+const customerAuthController = require('../../controllers/customerPortal/CustomerAuth.Controller');
 const { verifyCustomerToken } = require('../../middleware/customerAuth');
 
 router.post('/register', customerAuthController.register);
