@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const customerController = require('../../controllers/customer/customer.controller');
+const customerController = require('../../controllers/customer/customer.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 // Any staff member who deals with customers day-to-day can view the list
