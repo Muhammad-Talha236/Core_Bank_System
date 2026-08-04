@@ -19,7 +19,23 @@ const customerAuthRoutes = require('./routes/customerPortal/customerAuth.routes'
 const customerPortalRoutes = require('./routes/customerPortal/customerPortal.routes');
 
 const app = express();
-app.use(cors());
+// In production, only allow requests from your deployed frontend(s).
+// FRONTEND_URL / CUSTOMER_FRONTEND_URL are set as env vars on Render.
+// Locally (no env vars set), everything is allowed so dev stays easy.
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173'
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
 app.use(bodyParser.json());
 
 // Serve frontend static files
