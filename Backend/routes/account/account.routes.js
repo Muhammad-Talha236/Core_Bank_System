@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const accountController = require('../../controllers/account/account.controller');
-const accountProductController = require('../../controllers/account/accountProduct.controller');
+const accountController = require('../../controllers/account/account.Controller');
+const accountProductController = require('../../controllers/account/accountProduct.Controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 const CAN_VIEW = ['SuperAdmin', 'Admin', 'BranchManager', 'Teller', 'Auditor'];
