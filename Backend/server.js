@@ -13,7 +13,7 @@ const customerRoutes = require('./routes/customer/customer.routes');
 const accountRoutes = require('./routes/account/account.routes');
 const transactionRoutes = require('./routes/transaction/transaction.routes');
 const auditRoutes = require('./routes/audit/audit.routes');
-
+const chatbotRoutes = require('./routes/chatbot/chatbot.routes');
 // Customer self-service portal (separate from staff-facing routes above)
 const customerAuthRoutes = require('./routes/customerPortal/customerAuth.routes');
 const customerPortalRoutes = require('./routes/customerPortal/customerPortal.routes');
@@ -49,7 +49,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/audit', auditRoutes);
-
+app.use('/api/chatbot', chatbotRoutes);
 // Customer self-service portal routes
 app.use('/api/customer-auth', customerAuthRoutes);
 app.use('/api/customer-portal', customerPortalRoutes);

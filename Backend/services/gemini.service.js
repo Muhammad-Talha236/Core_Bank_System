@@ -2,7 +2,7 @@
 // built in) rather than an SDK, to keep dependencies minimal.
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
-const CHAT_MODEL = 'gemini-2.5-flash';
+const CHAT_MODEL = 'gemini-3.5-flash';
 
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 

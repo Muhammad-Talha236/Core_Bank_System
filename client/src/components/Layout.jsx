@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
+import ChatWidget from './ChatWidget';
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', roles: null },
   { to: '/dashboard/customers', label: 'Customers', roles: ['SuperAdmin', 'Admin', 'BranchManager', 'Teller', 'Auditor'] },
@@ -70,6 +70,7 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto h-full">
         <Outlet />
       </main>
+      <ChatWidget />
     </div>
   );
 }

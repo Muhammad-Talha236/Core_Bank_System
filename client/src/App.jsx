@@ -11,7 +11,10 @@ import Branches from './pages/staff/Branches';
 import ChangePassword from './pages/staff/ChangePassword';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import CustomerLayout from './components/CustomerLayout';
+import CustomerTransfer from './pages/customer/CustomerTransfer';
+import CustomerBills from './pages/customer/CustomerBills';
+import CustomerSecurity from './pages/customer/CustomerSecurity';
 import CustomerLogin from './pages/customer/Login';
 import CustomerRegister from './pages/customer/Register';
 import CustomerDashboard from './pages/customer/Dashboard';
@@ -69,10 +72,15 @@ function App() {
         path="/customer/portal"
         element={
           <CustomerProtectedRoute>
-            <CustomerDashboard />
+            <CustomerLayout />
           </CustomerProtectedRoute>
         }
-      />
+      >
+        <Route index element={<CustomerDashboard />} />
+        <Route path="transfer" element={<CustomerTransfer />} />
+        <Route path="bills" element={<CustomerBills />} />
+        <Route path="security" element={<CustomerSecurity />} />
+      </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
