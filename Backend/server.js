@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
 
 const pool = require('./config/db');
 
@@ -19,9 +18,9 @@ const customerAuthRoutes = require('./routes/customerPortal/customerAuth.routes'
 const customerPortalRoutes = require('./routes/customerPortal/customerPortal.routes');
 
 const app = express();
-// In production, only allow requests from your deployed frontend(s).
-// FRONTEND_URL / CUSTOMER_FRONTEND_URL are set as env vars on Render.
-// Locally (no env vars set), everything is allowed so dev stays easy.
+// In production, only allow requests from your deployed frontend.
+// FRONTEND_URL is set as an env var on Render once the Vercel URL is known.
+// Locally (no env var set), everything is allowed so dev stays easy.
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:5173'
@@ -37,9 +36,6 @@ app.use(cors({
   }
 }));
 app.use(bodyParser.json());
-
-// Serve frontend static files
-app.use('/frontend', express.static(path.join(__dirname, '..', 'Frontend')));
 
 // Staff-facing API routes
 app.use('/api/auth', authRoutes);
@@ -68,6 +64,5 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
   console.log(`✅ CBS Backend running on http://localhost:${PORT}`);
-  console.log(`🌐 Frontend: http://localhost:${PORT}/frontend/index.html`);
   await pool.verifyConnection();
 });

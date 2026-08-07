@@ -1,6 +1,8 @@
 const pool = require('../../config/db');
 const crypto = require('crypto');
 
+const SYSTEM_WIDE_ROLES = ['SuperAdmin', 'Auditor'];
+
 // helper: 8-digit account number (10,000,000 .. 99,999,999)
 function generateAccountNumber() {
   try {
@@ -10,19 +12,32 @@ function generateAccountNumber() {
   }
 }
 
-// Get all customers
+// Get all customers - scoped to the logged-in employee's branch, same as
+// Accounts. SuperAdmin and Auditor see every branch's customers, along
+// with which branch each one belongs to (BranchName).
 exports.getAllCustomers = async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    const isSystemWide = SYSTEM_WIDE_ROLES.includes(req.employee.roleName);
+
+    const query = `
       SELECT
-        "CustomerID" AS "CustID",
-        "Name",
-        "CNIC",
-        "Contact",
-        "Gmail"
-      FROM "Customer"
-      ORDER BY "CustomerID" DESC
-    `);
+        c."CustomerID" AS "CustID",
+        c."Name",
+        c."CNIC",
+        c."Contact",
+        c."Gmail",
+        c."BranchID",
+        b."BranchName"
+      FROM "Customer" c
+      LEFT JOIN "Branch" b ON c."BranchID" = b."BranchID"
+      ${isSystemWide ? '' : 'WHERE c."BranchID" = $1'}
+      ORDER BY c."CustomerID" DESC
+    `;
+
+    const { rows } = isSystemWide
+      ? await pool.query(query)
+      : await pool.query(query, [req.employee.branchId]);
+
     res.json(rows);
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -30,13 +45,24 @@ exports.getAllCustomers = async (req, res) => {
   }
 };
 
-// Add new customer (creates Account with 8-digit AccountNo)
+// Add new customer (creates Account with 8-digit AccountNo).
+// The customer is tied to the creating employee's branch - SuperAdmin can
+// optionally target a different branch via req.body.branchId, same rule
+// account.Controller.js already follows for account creation.
 exports.addCustomer = async (req, res) => {
-  const { name, cnic, contact, gmail, Gmail } = req.body;
+  const { name, cnic, contact, gmail, Gmail, branchId } = req.body;
   const email = gmail ?? Gmail ?? null;
 
   if (!name || !cnic || !contact || !email) {
     return res.status(400).json({ error: 'name, cnic, contact and gmail are all required' });
+  }
+
+  const targetBranchId = req.employee.roleName === 'SuperAdmin'
+    ? (branchId || req.employee.branchId)
+    : req.employee.branchId;
+
+  if (!targetBranchId) {
+    return res.status(400).json({ error: 'No branch assigned - cannot create customer' });
   }
 
   const client = await pool.connect();
@@ -44,10 +70,10 @@ exports.addCustomer = async (req, res) => {
     await client.query('BEGIN');
 
     const custResult = await client.query(
-      `INSERT INTO "Customer" ("Name", "CNIC", "Contact", "Gmail")
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO "Customer" ("Name", "CNIC", "Contact", "Gmail", "BranchID")
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING "CustomerID"`,
-      [name, cnic, contact, email]
+      [name, cnic, contact, email, targetBranchId]
     );
     const customerId = custResult.rows[0].CustomerID;
 
@@ -65,9 +91,9 @@ exports.addCustomer = async (req, res) => {
       await client.query('SAVEPOINT before_account_insert');
       try {
         await client.query(
-          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status", "Nickname")
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [accountNo, customerId, 'Savings', 0.00, 'Active', 'Primary Savings']
+          `INSERT INTO "Account" ("AccountNo", "CustomerID", "Type", "Balance", "Status", "Nickname", "BranchID")
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [accountNo, customerId, 'Savings', 0.00, 'Active', 'Primary Savings', targetBranchId]
         );
         await client.query('RELEASE SAVEPOINT before_account_insert');
         inserted = true;

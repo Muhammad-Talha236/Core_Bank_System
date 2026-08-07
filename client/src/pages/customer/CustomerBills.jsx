@@ -9,14 +9,23 @@ export default function CustomerBills() {
   const [billError, setBillError] = useState('');
   const [billResult, setBillResult] = useState('');
   const [billHistory, setBillHistory] = useState([]);
+  const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     customerApi.get('/customer-portal/accounts').then((res) => {
       setAccounts(res.data);
       if (res.data.length > 0) setSelectedAccount(res.data[0]);
+    }).catch((err) => {
+      console.error('Error loading accounts:', err);
+      setLoadError('Could not load your accounts. Please refresh the page.');
     });
-    customerApi.get('/customer-portal/billers').then((res) => setBillers(res.data)).catch(() => {});
+
+    customerApi.get('/customer-portal/billers').then((res) => setBillers(res.data)).catch((err) => {
+      console.error('Error loading billers:', err);
+      setLoadError('Could not load the list of billers. Please refresh the page.');
+    });
+
     loadHistory();
   }, []);
 
@@ -24,7 +33,10 @@ export default function CustomerBills() {
     try {
       const { data } = await customerApi.get('/customer-portal/bill-payments');
       setBillHistory(data);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Error loading bill payment history:', err);
+      setLoadError('Could not load your payment history.');
+    }
   }
 
   async function handleBillPay(e) {
@@ -58,6 +70,12 @@ export default function CustomerBills() {
         <h2 className="font-display text-3xl text-ink-900 mb-1">Utility Bill Payments</h2>
         <p className="text-slate-soft">Settle utility, mobile, and internet bills securely.</p>
       </div>
+
+      {loadError && (
+        <div className="text-sm text-ledger-red bg-ledger-red/10 border border-ledger-red/30 rounded-sm px-4 py-3">
+          {loadError}
+        </div>
+      )}
 
       <form onSubmit={handleBillPay} className="bg-white border border-paper-line rounded-sm p-6 space-y-4 shadow-sm max-w-2xl">
         <div>

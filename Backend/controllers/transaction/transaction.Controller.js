@@ -28,7 +28,7 @@ async function writeLedgerEntry(client, { transId, accountNo, entryType, amount,
 
 // Term Deposits are locked funds - they cannot be touched via normal
 // deposit/withdraw/transfer. Use the dedicated close-term-deposit endpoint instead.
-async function rejectIfTermDeposit(client, accountNo, res) {
+async function rejectIfTermDeposit(client, accountNo) {
   const { rows } = await client.query(`SELECT "Type" FROM "Account" WHERE "AccountNo" = $1`, [accountNo]);
   if (rows.length > 0 && rows[0].Type === 'TermDeposit') {
     return true;
@@ -61,7 +61,7 @@ exports.deposit = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Account not found' });
     }
 
-    if (await rejectIfTermDeposit(client, accountNo, res)) {
+    if (await rejectIfTermDeposit(client, accountNo)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'This is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }
@@ -141,7 +141,7 @@ exports.withdraw = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Account not found' });
     }
 
-    if (await rejectIfTermDeposit(client, accountNo, res)) {
+    if (await rejectIfTermDeposit(client, accountNo)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'This is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }
@@ -239,7 +239,7 @@ exports.transfer = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Sender or receiver account not found' });
     }
 
-    if (await rejectIfTermDeposit(client, fromAccount, res)) {
+    if (await rejectIfTermDeposit(client, fromAccount)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'The sender is a Term Deposit account. Funds are locked until maturity - use the Close Term Deposit action instead.' });
     }

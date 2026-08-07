@@ -1,13 +1,9 @@
 const { Pool } = require('pg');
 
-// Neon requires SSL. Neon gives you a single connection string
-// (DATABASE_URL) rather than separate host/user/pass/db like MySQL.
-// Falls back to discrete vars if DATABASE_URL isn't set, so local
-// Postgres dev still works without Neon.
-const pool = process.env.DATABASE_URL
+const masterPool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // required for Neon
+      ssl: { rejectUnauthorized: false }
     })
   : new Pool({
       host: process.env.DB_HOST,
@@ -17,34 +13,61 @@ const pool = process.env.DATABASE_URL
       port: process.env.DB_PORT || 5432
     });
 
-// Neon (serverless Postgres) suspends its compute after a few minutes of
-// inactivity. The first query after that can occasionally hit a stale pooled
-// connection and throw ECONNRESET once. Keeping max idle time short means
-// the pool recycles connections before Neon closes them from its side.
-pool.options.idleTimeoutMillis = 10000;
-pool.options.max = 10;
+const replicaPool = process.env.READ_DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.READ_DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+  : masterPool;
 
-pool.on('error', (err) => {
-  // Idle client errors (e.g. Neon closing an idle connection) shouldn't
-  // crash the whole app — log and let the pool recover.
-  console.error('Unexpected error on idle Postgres client:', err.message);
+[masterPool, replicaPool].forEach((p) => {
+  p.options.idleTimeoutMillis = 10000;
+  p.options.max = 20;
 });
 
-// Startup health check so connection failures are obvious immediately
-// instead of surfacing as a confusing error on the first request.
+masterPool.on('error', (err) => {
+  console.error('Unexpected error on master Postgres client:', err.message);
+});
+
+replicaPool.on('error', (err) => {
+  console.error('Unexpected error on replica Postgres client:', err.message);
+});
+
+async function queryMaster(text, params) {
+  const client = await masterPool.connect();
+  try {
+    return await client.query(text, params);
+  } finally {
+    client.release();
+  }
+}
+
+async function queryReplica(text, params) {
+  const client = await replicaPool.connect();
+  try {
+    return await client.query(text, params);
+  } finally {
+    client.release();
+  }
+}
+
 async function verifyConnection() {
   try {
-    const client = await pool.connect();
+    const client = await masterPool.connect();
     const { rows } = await client.query('SELECT NOW() as now, current_database() as db');
     client.release();
-    console.log(`✅ Postgres connected — DB: ${rows[0].db}, server time: ${rows[0].now}`);
+    console.log(`  Postgres Master connected   DB: ${rows[0].db}, server time: ${rows[0].now}`);
     return true;
   } catch (err) {
-    console.error('❌ Postgres connection failed:', err.message);
-    console.error('   Check DATABASE_URL / DB_HOST-DB_USER-DB_PASS-DB_NAME in your .env file.');
+    console.error('  Postgres connection failed:', err.message);
     return false;
   }
 }
 
-module.exports = pool;
-module.exports.verifyConnection = verifyConnection;
+// Attach helper properties directly to masterPool so existing 'const pool = require(...)'-based calls work seamlessly
+masterPool.replicaPool = replicaPool;
+masterPool.queryMaster = queryMaster;
+masterPool.queryReplica = queryReplica;
+masterPool.verifyConnection = verifyConnection;
+
+module.exports = masterPool;

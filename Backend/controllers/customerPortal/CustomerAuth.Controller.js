@@ -1,7 +1,8 @@
 const pool = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const { verifyOtpCode } = require('../auth/otp.Controller');
+const { sendOtpEmail } = require('../../services/email.service');
 const MAX_FAILED_ATTEMPTS = 5;
 const TOKEN_EXPIRY = '2h'; // shorter than staff sessions - customer-facing, more sensitive
 
@@ -61,20 +62,20 @@ exports.register = async (req, res) => {
 };
 
 // POST /api/customer-auth/login
+// Updated Login (Step 1: Verify credentials & send OTP)
 exports.login = async (req, res) => {
-  const { gmail, cnic, password } = req.body;
-  const ipAddress = req.ip || req.connection.remoteAddress;
+  const { gmail, cnic, password, otpCode } = req.body;
+  const identifier = gmail || cnic;
 
-  if ((!gmail && !cnic) || !password) {
+  if (!identifier || !password) {
     return res.status(400).json({ error: 'gmail or cnic, plus password, are required' });
   }
 
   try {
+    // FIX: Added "Gmail" explicitly in the SELECT columns list so customer.Gmail is defined
     const { rows } = await pool.query(
-      `SELECT "CustomerID", "Name", "Gmail", "CNIC", "PasswordHash", "Status", "FailedLoginAttempts", "RegisteredForOnlineBanking"
-       FROM "Customer"
-       WHERE ${gmail ? '"Gmail" = $1' : '"CNIC" = $1'}`,
-      [gmail || cnic]
+      `SELECT "CustomerID", "Name", "Gmail", "CNIC", "PasswordHash", "Status", "FailedLoginAttempts", "RegisteredForOnlineBanking"        FROM "Customer"        WHERE "CNIC" = $1`,
+      [cnic]
     );
 
     if (rows.length === 0 || !rows[0].RegisteredForOnlineBanking) {
@@ -83,30 +84,57 @@ exports.login = async (req, res) => {
 
     const customer = rows[0];
 
-    if (customer.Status === 'Locked') {
-      return res.status(403).json({ error: 'Account locked due to too many failed attempts. Please contact your branch.' });
-    }
-    if (customer.Status === 'Suspended') {
-      return res.status(403).json({ error: 'Account suspended. Please contact your branch.' });
+    if (customer.Status === 'Locked' || customer.Status === 'Suspended') {
+      return res.status(403).json({ error: `Account ${customer.Status.toLowerCase()}. Please contact your branch.` });
     }
 
     const passwordMatches = await bcrypt.compare(password, customer.PasswordHash);
-
     if (!passwordMatches) {
       const newAttempts = customer.FailedLoginAttempts + 1;
       const shouldLock = newAttempts >= MAX_FAILED_ATTEMPTS;
-
       await pool.query(
         `UPDATE "Customer" SET "FailedLoginAttempts" = $1, "Status" = $2 WHERE "CustomerID" = $3`,
         [newAttempts, shouldLock ? 'Locked' : customer.Status, customer.CustomerID]
       );
-
       if (shouldLock) {
         return res.status(403).json({ error: 'Too many failed attempts. Your account has been locked.' });
       }
       return res.status(401).json({
         error: `Invalid credentials. ${MAX_FAILED_ATTEMPTS - newAttempts} attempt(s) remaining before lockout.`
       });
+    }
+
+    // Agar OTP provide nahi kiya gaya, toh OTP generate karke email par bhejo
+    if (!otpCode) {
+      const rawCode = (Math.floor(Math.random() * 900000) + 100000).toString();
+      const codeHash = await bcrypt.hash(rawCode, 10);
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      await pool.query(
+        `UPDATE "OtpCode" SET "IsUsed" = TRUE WHERE "Identifier" = $1 AND "Purpose" = $2 AND "IsUsed" = FALSE`,
+        [customer.Gmail, 'CUSTOMER_LOGIN']
+      );
+      await pool.query(
+        `INSERT INTO "OtpCode" ("Identifier", "CodeHash", "Purpose", "ExpiresAt") VALUES ($1, $2, $3, $4)`,
+        [customer.Gmail, codeHash, 'CUSTOMER_LOGIN', expiresAt]
+      );
+
+      console.log(`[OTP DEBUG] Customer Login OTP for ${customer.Gmail}: ${rawCode}`);
+
+      // Real email dispatch using customer's actual database email
+      await sendOtpEmail(customer.Gmail, rawCode);
+
+      return res.json({
+        success: true,
+        requiresOtp: true,
+        message: 'Credentials verified. Please enter the verification code sent to your email.'
+      });
+    }
+
+    // Agar OTP diya hai, toh verify karo
+    const otpResult = await verifyOtpCode(customer.Gmail, otpCode, 'CUSTOMER_LOGIN');
+    if (!otpResult.valid) {
+      return res.status(400).json({ success: false, error: otpResult.error });
     }
 
     await pool.query(
@@ -130,7 +158,6 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 // GET /api/customer-auth/me
 exports.me = async (req, res) => {
   try {

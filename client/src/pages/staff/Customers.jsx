@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
+
+const SYSTEM_WIDE_ROLES = ['SuperAdmin', 'Auditor'];
 
 export default function Customers() {
+  const { employee } = useAuth();
+  const showBranchColumn = SYSTEM_WIDE_ROLES.includes(employee.role);
+
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -92,6 +98,7 @@ export default function Customers() {
                 <th className="px-5 py-3 font-medium">CNIC</th>
                 <th className="px-5 py-3 font-medium">Contact</th>
                 <th className="px-5 py-3 font-medium">Gmail</th>
+                {showBranchColumn && <th className="px-5 py-3 font-medium">Branch</th>}
               </tr>
             </thead>
             <tbody>
@@ -102,6 +109,11 @@ export default function Customers() {
                   <td className="px-5 py-3 font-mono">{c.CNIC}</td>
                   <td className="px-5 py-3">{c.Contact}</td>
                   <td className="px-5 py-3 text-slate-soft">{c.Gmail}</td>
+                  {showBranchColumn && (
+                    <td className="px-5 py-3 text-slate-soft">
+                      {c.BranchName || <span className="text-ledger-red italic">Unassigned</span>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
