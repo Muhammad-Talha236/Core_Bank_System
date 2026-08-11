@@ -45,64 +45,86 @@ export default function Approvals() {
     }
   }
 
+  const typeMeta = {
+    Deposit: { icon: '↓', color: 'text-ledger-green' },
+    Withdrawal: { icon: '↑', color: 'text-ledger-red' },
+    Transfer: { icon: '⇄', color: 'text-brass-dark' },
+  };
+
   return (
-    <div className="p-8">
-      <h1 className="font-display text-3xl text-ink-900 mb-1">Pending Approvals</h1>
-      <p className="text-slate-soft mb-8">
-        Transactions above Rs 100,000 wait here until a second person approves them.
-      </p>
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="mb-8 animate-fade-up">
+        <p className="eyebrow mb-1">Maker-Checker</p>
+        <h1 className="font-display text-3xl text-ink-900">Pending Approvals</h1>
+        <p className="text-slate-soft mt-1">
+          Transactions above Rs 100,000 wait here until a second person approves them.
+        </p>
+      </div>
 
       {loading && <p className="text-slate-soft">Loading...</p>}
       {error && <p className="text-ledger-red">{error}</p>}
 
       {!loading && !error && pending.length === 0 && (
-        <div className="bg-white border border-paper-line rounded-sm p-10 text-center">
+        <div className="panel p-14 text-center animate-fade-up">
+          <div className="w-12 h-12 rounded-full bg-ledger-green-100 text-ledger-green flex items-center justify-center mx-auto mb-3 text-xl">✓</div>
           <p className="text-slate-soft">No transactions awaiting approval.</p>
         </div>
       )}
 
       <div className="space-y-4">
-        {pending.map((txn) => (
-          <div key={txn.TransID} className="bg-white border border-paper-line rounded-sm p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="stamp text-brass-dark">{txn.Type}</span>
-                  <span className="font-mono text-xs text-slate-soft">#{txn.TransID}</span>
+        {pending.map((txn, i) => {
+          const meta = typeMeta[txn.Type] || { icon: '•', color: 'text-slate-soft' };
+          return (
+            <div
+              key={txn.TransID}
+              className="panel panel-hover p-5 animate-fade-up"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex gap-4">
+                  <div className={`w-11 h-11 rounded-lg bg-ink-50 flex items-center justify-center text-xl shrink-0 ${meta.color}`}>
+                    {meta.icon}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="pill pill-brass">{txn.Type}</span>
+                      <span className="font-mono text-xs text-slate-soft">#{txn.TransID}</span>
+                    </div>
+                    <p className="font-display text-2xl text-ink-900">
+                      Rs {parseFloat(txn.Amount).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-sm text-slate-soft mt-1">
+                      {txn.FromAccount && <>From <span className="font-mono">{txn.FromAccount}</span> </>}
+                      {txn.ToAccount && <>{txn.FromAccount ? '→ ' : 'To '}<span className="font-mono">{txn.ToAccount}</span></>}
+                    </p>
+                    <p className="text-xs text-slate-soft mt-1">
+                      Initiated by <span className="font-medium text-slate">{txn.InitiatedByName}</span> on{' '}
+                      {new Date(txn.DateTime).toLocaleString()}
+                    </p>
+                    {txn.Description && <p className="text-xs text-slate-soft mt-1 italic">{txn.Description}</p>}
+                  </div>
                 </div>
-                <p className="font-display text-2xl text-ink-900">
-                  Rs {parseFloat(txn.Amount).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-sm text-slate-soft mt-1">
-                  {txn.FromAccount && <>From <span className="font-mono">{txn.FromAccount}</span> </>}
-                  {txn.ToAccount && <>{txn.FromAccount ? '→ ' : 'To '}<span className="font-mono">{txn.ToAccount}</span></>}
-                </p>
-                <p className="text-xs text-slate-soft mt-1">
-                  Initiated by <span className="font-medium">{txn.InitiatedByName}</span> on{' '}
-                  {new Date(txn.DateTime).toLocaleString()}
-                </p>
-                {txn.Description && <p className="text-xs text-slate-soft mt-1 italic">{txn.Description}</p>}
-              </div>
 
-              <div className="flex flex-col gap-2 shrink-0">
-                <button
-                  onClick={() => handleApprove(txn.TransID)}
-                  disabled={actioningId === txn.TransID}
-                  className="bg-ledger-green text-white text-sm font-medium px-4 py-2 rounded-sm hover:opacity-90 transition disabled:opacity-50"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleReject(txn.TransID)}
-                  disabled={actioningId === txn.TransID}
-                  className="border border-ledger-red text-ledger-red text-sm font-medium px-4 py-2 rounded-sm hover:bg-ledger-red/10 transition disabled:opacity-50"
-                >
-                  Reject
-                </button>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button
+                    onClick={() => handleApprove(txn.TransID)}
+                    disabled={actioningId === txn.TransID}
+                    className="btn bg-ledger-green text-white hover:opacity-90"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleReject(txn.TransID)}
+                    disabled={actioningId === txn.TransID}
+                    className="btn btn-danger-outline"
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

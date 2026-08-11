@@ -1,37 +1,157 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  /* Meridian Bank - ledger/passbook inspired palette */
-  --color-ink-900: #0B1F3A;      /* deep navy - primary surfaces, headers */
+  --color-ink-900: #0B1F3A;
   --color-ink-800: #142B4D;
   --color-ink-700: #1E3A63;
-  --color-paper: #F6F4EF;        /* off-white ledger paper */
-  --color-paper-line: #DCD5C7;   /* faint ruled-line color on paper surfaces */
-  --color-brass: #C9A227;        /* gold/brass accent - trust, heritage */
+  --color-ink-600: #2A4A7A;
+  --color-ink-50: #EEF2F8;
+
+  --color-paper: #F6F4EF;
+  --color-paper-line: #DCD5C7;
+  --color-paper-dark: #EFEBE1;
+
+  --color-brass: #C9A227;
   --color-brass-dark: #A8811C;
-  --color-ledger-green: #1F7A4D; /* credit / success */
-  --color-ledger-red: #B3261E;   /* debit / alert */
-  --color-slate: #1C2430;        /* body text */
-  --color-slate-soft: #5B6472;   /* secondary text */
+  --color-brass-100: #FBF3D9;
+
+  --color-ledger-green: #1F7A4D;
+  --color-ledger-green-100: #E7F4EC;
+  --color-ledger-red: #B3261E;
+  --color-ledger-red-100: #FBEAE9;
+
+  --color-slate: #1C2430;
+  --color-slate-soft: #5B6472;
+  --color-slate-faint: #8A93A3;
 
   --font-display: 'Fraunces', serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+
+  --shadow-card: 0 1px 2px rgba(11, 31, 58, 0.06), 0 1px 1px rgba(11, 31, 58, 0.04);
+  --shadow-elevated: 0 16px 40px -10px rgba(11, 31, 58, 0.25), 0 4px 14px -4px rgba(11, 31, 58, 0.14);
 }
 
 body {
   font-family: var(--font-body);
   color: var(--color-slate);
-  background: var(--color-paper);
+  background:
+    radial-gradient(1200px 500px at 100% -10%, rgba(201, 162, 39, 0.07), transparent 60%),
+    var(--color-paper);
+  min-height: 100vh;
 }
 
-/* Ledger-paper ruled lines for tables - the signature visual motif */
+/* ------------------------------------------------------------------ */
+/* Animation system — used across every page for entrance + feedback  */
+/* ------------------------------------------------------------------ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { animation: fadeIn 0.4s ease both; }
+.animate-scale-in { animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-down { animation: slideDown 0.2s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-in, .animate-scale-in, .animate-slide-down {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces                                                            */
+/* ------------------------------------------------------------------ */
+.panel {
+  background: #fff;
+  border: 1px solid var(--color-paper-line);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.panel-hover:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-2px);
+}
+
+.panel-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-paper-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-brass-dark);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons                                                             */
+/* ------------------------------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary { background: var(--color-ink-900); color: var(--color-paper); }
+.btn-primary:hover:not(:disabled) { background: var(--color-ink-800); box-shadow: 0 4px 14px rgba(11,31,58,0.25); }
+
+.btn-brass { background: var(--color-brass); color: var(--color-ink-900); font-weight: 600; }
+.btn-brass:hover:not(:disabled) { background: var(--color-brass-dark); color: #fff; box-shadow: 0 4px 14px rgba(201,162,39,0.35); }
+
+.btn-ghost { background: transparent; color: var(--color-slate-soft); border: 1px solid var(--color-paper-line); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--color-ink-700); color: var(--color-ink-900); background: var(--color-ink-50); }
+
+.btn-danger-outline { background: transparent; color: var(--color-ledger-red); border: 1px solid var(--color-ledger-red); }
+.btn-danger-outline:hover:not(:disabled) { background: var(--color-ledger-red-100); }
+
+/* ------------------------------------------------------------------ */
+/* Tables                                                               */
+/* ------------------------------------------------------------------ */
 .ledger-table tbody tr {
   border-bottom: 1px solid var(--color-paper-line);
+  transition: background 0.12s ease;
 }
+.ledger-table tbody tr:hover { background: var(--color-ink-50); }
 
-/* Ink-stamp badge - used for transaction/approval status everywhere */
+/* ------------------------------------------------------------------ */
+/* Badges                                                               */
+/* ------------------------------------------------------------------ */
 .stamp {
   display: inline-flex;
   align-items: center;
@@ -45,4 +165,62 @@ body {
   border-radius: 3px;
   border: 1.5px solid currentColor;
   transform: rotate(-1.5deg);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.pill-brass { background: var(--color-brass-100); color: var(--color-brass-dark); }
+.pill-navy { background: var(--color-ink-50); color: var(--color-ink-800); }
+.pill-green { background: var(--color-ledger-green-100); color: var(--color-ledger-green); }
+.pill-red { background: var(--color-ledger-red-100); color: var(--color-ledger-red); }
+
+/* ------------------------------------------------------------------ */
+/* Transaction type selector cards                                     */
+/* ------------------------------------------------------------------ */
+.type-card {
+  position: relative;
+  border: 1.5px solid var(--color-paper-line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+.type-card:hover {
+  border-color: var(--color-ink-600);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-elevated);
+}
+.type-card.active {
+  border-color: var(--color-brass);
+  background: linear-gradient(180deg, var(--color-brass-100) 0%, #fff 55%);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15), var(--shadow-elevated);
+}
+.type-card.active::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brass);
+}
+
+.hairline { border: none; border-top: 1px dashed var(--color-paper-line); }
+
+::selection { background: var(--color-brass-100); color: var(--color-ink-900); }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 2px;
 }
