@@ -171,11 +171,11 @@ exports.changePassword = async (req, res) => {
     const newHash = await bcrypt.hash(newPassword, 10);
     await pool.query(`UPDATE "Employee" SET "PasswordHash" = $1 WHERE "EmployeeID" = $2`, [newHash, req.employee.employeeId]);
 
-    await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('UPDATE', 'Employee', $1, $2, 'Password changed by user')`,
-      [req.employee.employeeId, req.employee.name]
-    );
+   await pool.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('UPDATE', 'Employee', $1, $2, $3, 'Password changed by user')`,
+  [req.employee.employeeId, req.employee.name, req.employee.employeeId]
+);
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

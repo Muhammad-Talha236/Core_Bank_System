@@ -53,11 +53,11 @@ exports.createEmployee = async (req, res) => {
       [name, email, passwordHash, roleId, branchId || null]
     );
 
-    await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('INSERT', 'Employee', $1, $2, $3)`,
-      [rows[0].EmployeeID, req.employee.name, `Employee "${name}" (${email}) created by ${req.employee.name}`]
-    );
+   await pool.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('INSERT', 'Employee', $1, $2, $3, $4)`,
+  [rows[0].EmployeeID, req.employee.name, req.employee.employeeId, `Employee "${name}" (${email}) created by ${req.employee.name}`]
+);
 
     res.json({ success: true, employeeId: rows[0].EmployeeID, message: 'Employee created successfully' });
   } catch (error) {
@@ -92,12 +92,11 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('UPDATE', 'Employee', $1, $2, $3)`,
-      [employeeId, req.employee.name, `Employee #${employeeId} updated by ${req.employee.name}`]
-    );
-
+   await pool.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
+  [employeeId, req.employee.name, req.employee.employeeId, `Employee #${employeeId} updated by ${req.employee.name}`]
+);
     res.json({ success: true, message: 'Employee updated successfully' });
   } catch (error) {
     console.error('Error updating employee:', error);
@@ -151,11 +150,11 @@ exports.updateEmployeeStatus = async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('UPDATE', 'Employee', $1, $2, $3)`,
-      [employeeId, req.employee.name, `Employee "${rows[0].Name}" status changed to ${status} by ${req.employee.name}`]
-    );
+   await pool.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
+  [employeeId, req.employee.name, req.employee.employeeId, `Employee "${rows[0].Name}" status changed to ${status} by ${req.employee.name}`]
+);
 
     res.json({ success: true, message: `Employee status updated to ${status}` });
   } catch (error) {

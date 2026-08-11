@@ -116,11 +116,11 @@ exports.addCustomer = async (req, res) => {
       [accountNo, 3.50]
     );
 
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ($1, $2, $3, $4, $5)`,
-      ['INSERT', 'Account', accountNo, name, `Account created for customer ${customerId}`]
-    );
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ($1, $2, $3, $4, $5, $6)`,
+  ['INSERT', 'Account', accountNo, name, req.employee.employeeId, `Account created for customer ${customerId}`]
+);
 
     await client.query('COMMIT');
 

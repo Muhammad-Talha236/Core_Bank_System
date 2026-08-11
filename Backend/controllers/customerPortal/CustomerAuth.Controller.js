@@ -49,9 +49,9 @@ exports.register = async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('INSERT', 'Customer', $1, $2, 'Registered for online banking')`,
-      [customer.CustomerID, customer.Name]
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
+       VALUES ('INSERT', 'Customer', $1, $2, $3, 'Registered for online banking')`,
+      [customer.CustomerID, customer.Name, customer.CustomerID]
     );
 
     res.json({ success: true, message: 'Registration successful. You can now log in.' });
@@ -201,11 +201,11 @@ exports.changePassword = async (req, res) => {
     const newHash = await bcrypt.hash(newPassword, 10);
     await pool.query(`UPDATE "Customer" SET "PasswordHash" = $1 WHERE "CustomerID" = $2`, [newHash, req.customer.customerId]);
 
-    await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('UPDATE', 'Customer', $1, $2, 'Password changed by customer (self-service)')`,
-      [req.customer.customerId, req.customer.name]
-    );
+  await pool.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
+   VALUES ('UPDATE', 'Customer', $1, $2, $3, 'Password changed by customer (self-service)')`,
+  [req.customer.customerId, req.customer.name, req.customer.customerId]
+);
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

@@ -139,10 +139,10 @@ exports.transfer = async (req, res) => {
     );
 
     await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('COMMIT', 'Account', $1, $2, $3)`,
-      [fromAccount, req.customer.name, `Online transfer of ${amount} to Account ${toAccount} (self-service)`]
-    );
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
+   VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
+  [fromAccount, req.customer.name, req.customer.customerId, `Online transfer of ${amount} to Account ${toAccount} (self-service)`]
+);
 
     await client.query('COMMIT');
 
@@ -239,9 +239,9 @@ exports.payBill = async (req, res) => {
     );
 
     await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('COMMIT', 'Account', $1, $2, $3)`,
-      [fromAccount, req.customer.name, `Bill payment of ${amount} to ${billerRows[0].BillerName}`]
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
+       VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
+      [fromAccount, req.customer.name, req.customer.customerId, `Bill payment of ${amount} to ${billerRows[0].BillerName}`]
     );
 
     await client.query('COMMIT');

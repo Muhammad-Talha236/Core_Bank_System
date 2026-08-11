@@ -5,15 +5,17 @@ exports.getAllAuditLogs = async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT
-        "LogID",
-        "Operation",
-        "TableAffected",
-        "RecordID",
-        "UserName",
-        "DateTime" AS "CreatedAt",
-        "Details"
-      FROM "AuditLog"
-      ORDER BY "DateTime" DESC
+        al."LogID",
+        al."Operation",
+        al."TableAffected",
+        al."RecordID",
+        al."UserName",
+        al."EmployeeID",
+        al."CustomerID",
+        al."DateTime" AS "CreatedAt",
+        al."Details"
+      FROM "AuditLog" al
+      ORDER BY al."DateTime" DESC
       LIMIT 100
     `);
     res.json(rows);

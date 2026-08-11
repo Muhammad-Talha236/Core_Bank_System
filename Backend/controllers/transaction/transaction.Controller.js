@@ -98,11 +98,11 @@ exports.deposit = async (req, res) => {
 
     await client.query(`INSERT INTO "Deposit" ("TransID", "Amount", "DepositMethod") VALUES ($1, $2, $3)`, [transId, amount, method]);
     await writeLedgerEntry(client, { transId, accountNo, entryType: 'CREDIT', amount, balanceAfter: newBalance });
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details") VALUES ('COMMIT', 'Account', $1, $2, $3)`,
-      [accountNo, username, `Deposit of ${amount} successful`]
-    );
-
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
+  [accountNo, username, req.employee.employeeId, `Deposit of ${amount} successful`]
+);
     await client.query('COMMIT');
     const customerName = await getCustomerNameForAccount(client, accountNo);
 
@@ -150,10 +150,10 @@ exports.withdraw = async (req, res) => {
 
     if (currentBalance < amount) {
       await client.query(
-        `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-         VALUES ('ROLLBACK', 'Account', $1, $2, 'Insufficient balance')`,
-        [accountNo, username]
-      );
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('ROLLBACK', 'Account', $1, $2, $3, 'Insufficient balance')`,
+  [accountNo, username, req.employee.employeeId]
+);
       await client.query('COMMIT');
       return res.status(400).json({ success: false, error: 'Insufficient balance' });
     }
@@ -187,10 +187,10 @@ exports.withdraw = async (req, res) => {
 
     await client.query(`INSERT INTO "Withdrawal" ("TransID", "Amount", "WithdrawalMethod") VALUES ($1, $2, $3)`, [transId, amount, method]);
     await writeLedgerEntry(client, { transId, accountNo, entryType: 'DEBIT', amount, balanceAfter: newBalance });
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details") VALUES ('COMMIT', 'Account', $1, $2, $3)`,
-      [accountNo, username, `Withdrawal of ${amount} successful`]
-    );
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details") VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
+  [accountNo, username, req.employee.employeeId, `Withdrawal of ${amount} successful`]
+);
 
     await client.query('COMMIT');
     const customerName = await getCustomerNameForAccount(client, accountNo);
@@ -290,10 +290,10 @@ exports.transfer = async (req, res) => {
     await client.query(`INSERT INTO "Transfer" ("TransID", "Amount", "TransferType") VALUES ($1, $2, 'Internal')`, [transId, amount]);
     await writeLedgerEntry(client, { transId, accountNo: fromAccount, entryType: 'DEBIT', amount, balanceAfter: fromNewBalance });
     await writeLedgerEntry(client, { transId, accountNo: toAccount, entryType: 'CREDIT', amount, balanceAfter: toNewBalance });
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details") VALUES ('COMMIT', 'Account', $1, $2, $3)`,
-      [fromAccount, username, `Transfer of ${amount} to Account ${toAccount} successful`]
-    );
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details") VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
+  [fromAccount, username, req.employee.employeeId, `Transfer of ${amount} to Account ${toAccount} successful`]
+);
 
     await client.query('COMMIT');
     const senderName = await getCustomerNameForAccount(client, fromAccount);
@@ -409,11 +409,11 @@ exports.approveTransaction = async (req, res) => {
       [req.employee.employeeId, transId]
     );
 
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('COMMIT', 'TransactionLog', $1, $2, $3)`,
-      [transId, req.employee.name, `Transaction #${transId} approved by ${req.employee.name}`]
-    );
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('COMMIT', 'TransactionLog', $1, $2, $3, $4)`,
+  [transId, req.employee.name, req.employee.employeeId, `Transaction #${transId} approved by ${req.employee.name}`]
+);
 
     await client.query('COMMIT');
     res.json({ success: true, message: 'Transaction approved and processed' });
@@ -451,10 +451,10 @@ exports.rejectTransaction = async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('ROLLBACK', 'TransactionLog', $1, $2, $3)`,
-      [transId, req.employee.name, `Transaction #${transId} rejected by ${req.employee.name}${reason ? ': ' + reason : ''}`]
-    );
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('ROLLBACK', 'TransactionLog', $1, $2, $3, $4)`,
+  [transId, req.employee.name, req.employee.employeeId, `Transaction #${transId} rejected by ${req.employee.name}${reason ? ': ' + reason : ''}`]
+);
 
     res.json({ success: true, message: 'Transaction rejected' });
   } catch (error) {

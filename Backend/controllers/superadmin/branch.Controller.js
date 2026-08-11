@@ -32,11 +32,10 @@ exports.createBranch = async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('INSERT', 'Branch', $1, $2, $3)`,
-      [rows[0].BranchID, req.employee.name, `Branch "${branchName}" (${branchCode}) created`]
-    );
-
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('INSERT', 'Branch', $1, $2, $3, $4)`,
+  [rows[0].BranchID, req.employee.name, req.employee.employeeId, `Branch "${branchName}" (${branchCode}) created`]
+);
     res.json({ success: true, branchId: rows[0].BranchID, message: 'Branch created successfully' });
   } catch (error) {
     console.error('Error creating branch:', error);

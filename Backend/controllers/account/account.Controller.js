@@ -158,11 +158,11 @@ exports.createAccount = async (req, res) => {
       );
     }
 
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('INSERT', 'Account', $1, $2, $3)`,
-      [accountNo, req.employee.name, `${product.ProductName} opened for customer ${custID}, balance: ${initialBalance}`]
-    );
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('INSERT', 'Account', $1, $2, $3, $4)`,
+  [accountNo, req.employee.name, req.employee.employeeId, `${product.ProductName} opened for customer ${custID}, balance: ${initialBalance}`]
+);
 
     await client.query('COMMIT');
 
@@ -260,12 +260,11 @@ exports.closeTermDeposit = async (req, res) => {
       [transId, targetAccountNo, payout, newTargetBalance]
     );
 
-    await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
-       VALUES ('COMMIT', 'TermDeposit', $1, $2, $3)`,
-      [accountNo, req.employee.name, statusNote]
-    );
-
+   await client.query(
+  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+   VALUES ('COMMIT', 'TermDeposit', $1, $2, $3, $4)`,
+  [accountNo, req.employee.name, req.employee.employeeId, statusNote]
+);
     await client.query('COMMIT');
     res.json({ success: true, matured: isMatured, payout, newTargetBalance, message: statusNote });
   } catch (error) {
