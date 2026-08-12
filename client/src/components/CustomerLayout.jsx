@@ -1,94 +1,117 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 
+const LINKS = [
+  { to: '/customer/portal', label: 'Dashboard', end: true },
+  { to: '/customer/portal/transfer', label: 'Send Money' },
+  { to: '/customer/portal/bills', label: 'Bill Payments' },
+  { to: '/customer/portal/security', label: 'Security' },
+];
+
+function initials(name = '') {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || 'U';
+}
+
 export default function CustomerLayout() {
   const { customer, logout } = useCustomerAuth();
-  const [activeMenu, setActiveMenu] = useState(null);
+  const [userOpen, setUserOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const userRef = useRef(null);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    function onClick(e) {
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false);
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const linkClass = ({ isActive }) =>
+    `relative px-3.5 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
+      isActive ? 'text-ink-900' : 'text-slate-soft hover:text-ink-900 hover:bg-ink-50'
+    }`;
+
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col font-sans text-slate-800">
-      
-      {/* SINGLE CLEAN CORPORATE NAVBAR */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-8 h-18 flex items-center justify-between">
-          
-          {/* Brand Logo */}
-          <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => navigate('/customer/portal')}>
-            <div className="flex items-center text-xl tracking-tight text-[#005a43]">
-              <span className="text-[#84bd00] text-2xl font-black mr-1 leading-none">»</span>
-              <span className="font-extrabold tracking-tight text-[#004d38]">MERIDIAN</span>
+    <div className="min-h-screen flex flex-col bg-paper">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-paper-line shadow-sm">
+        <div className="max-w-[1300px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 shrink-0 cursor-pointer select-none" onClick={() => navigate('/customer/portal')}>
+            <div className="w-8 h-8 rounded-md bg-ink-900 flex items-center justify-center">
+              <span className="font-display text-brass text-base font-bold">M</span>
+            </div>
+            <div className="hidden sm:block leading-none">
+              <p className="font-display text-base text-ink-900">Meridian Bank</p>
+              <p className="font-mono text-[9px] tracking-widest text-brass-dark uppercase mt-0.5">Online Banking</p>
             </div>
           </div>
 
-          {/* Primary Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-8 font-semibold text-xs uppercase tracking-wider text-gray-600 h-full">
-            <NavLink 
-              to="/customer/portal" 
-              end
-              className={({ isActive }) => `hover:text-[#005a43] transition h-full flex items-center border-b-2 ${isActive ? 'border-[#005a43] text-[#005a43]' : 'border-transparent'}`}
-            >
-              Dashboard
-            </NavLink>
+          <nav className="hidden lg:flex items-center gap-1">
+            {LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} className={linkClass}>
+                {({ isActive }) => (
+                  <>
+                    {link.label}
+                    <span
+                      className="absolute left-3.5 right-3.5 -bottom-[1px] h-[2px] bg-brass rounded-full origin-left transition-transform duration-200"
+                      style={{ transform: isActive ? 'scaleX(1)' : 'scaleX(0)' }}
+                    />
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
-            {/* Accounts Dropdown Module */}
-            <div 
-              className="relative h-full flex items-center cursor-pointer"
-              onMouseEnter={() => setActiveMenu('accounts')}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
-              <span className="hover:text-[#005a43] h-full flex items-center gap-1 transition">Accounts <span className="text-[9px] text-gray-400">▼</span></span>
-              {activeMenu === 'accounts' && (
-                <div className="absolute top-full left-0 w-60 bg-white border border-gray-200 shadow-xl py-2 rounded-xs">
-                  <NavLink to="/customer/portal" className="block px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#005a43]">My Savings & Current Accounts</NavLink>
-                  <NavLink to="/customer/portal" className="block px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#005a43]">Passbook Ledger Statement</NavLink>
+          <div className="flex items-center gap-3">
+            <div className="relative hidden sm:block" ref={userRef}>
+              <button onClick={() => setUserOpen((v) => !v)} className="flex items-center gap-2.5 pl-2 pr-1 py-1 rounded-full hover:bg-ink-50 transition-colors">
+                <div className="text-right leading-none hidden md:block">
+                  <p className="text-sm font-medium text-ink-900">{customer?.name}</p>
+                  <p className="font-mono text-[10px] text-brass-dark uppercase tracking-wide mt-0.5">Online Client</p>
+                </div>
+                <div className="w-9 h-9 rounded-full bg-ink-900 border-2 border-brass/40 flex items-center justify-center shrink-0">
+                  <span className="font-mono text-xs text-brass font-semibold">{initials(customer?.name)}</span>
+                </div>
+              </button>
+              {userOpen && (
+                <div className="animate-slide-down absolute top-full right-0 mt-2 w-52 bg-white border border-paper-line rounded-lg shadow-xl py-1.5 overflow-hidden">
+                  <NavLink to="/customer/portal/security" onClick={() => setUserOpen(false)} className="block px-4 py-2.5 text-sm text-slate hover:bg-ink-50 transition-colors">
+                    Security Settings
+                  </NavLink>
+                  <button onClick={logout} className="w-full text-left px-4 py-2.5 text-sm text-ledger-red hover:bg-ledger-red-100 transition-colors">
+                    Sign out
+                  </button>
                 </div>
               )}
             </div>
 
-            <NavLink 
-              to="/customer/portal/transfer" 
-              className={({ isActive }) => `hover:text-[#005a43] transition h-full flex items-center border-b-2 ${isActive ? 'border-[#005a43] text-[#005a43]' : 'border-transparent'}`}
-            >
-              Send Money
-            </NavLink>
-
-            <NavLink 
-              to="/customer/portal/bills" 
-              className={({ isActive }) => `hover:text-[#005a43] transition h-full flex items-center border-b-2 ${isActive ? 'border-[#005a43] text-[#005a43]' : 'border-transparent'}`}
-            >
-              Bill Payments
-            </NavLink>
-
-            <NavLink 
-              to="/customer/portal/security" 
-              className={({ isActive }) => `hover:text-[#005a43] transition h-full flex items-center border-b-2 ${isActive ? 'border-[#005a43] text-[#005a43]' : 'border-transparent'}`}
-            >
-              Security
-            </NavLink>
-          </nav>
-
-          {/* User Profile & Sign Out */}
-          <div className="flex items-center space-x-4">
-            <div className="hidden sm:block text-right">
-              <p className="text-xs font-bold text-gray-900">{customer?.name}</p>
-              <p className="text-[10px] font-mono text-[#005a43] uppercase tracking-wider font-semibold">Online Client</p>
-            </div>
-
-            <button 
-              onClick={logout}
-              className="text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 transition px-3.5 py-2 rounded border border-red-200 bg-white"
-            >
-              Sign Out
+            <button onClick={() => setMobileOpen((v) => !v)} className="lg:hidden w-9 h-9 flex items-center justify-center rounded-md hover:bg-ink-50 transition-colors" aria-label="Menu">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M3 5h14M3 10h14M3 15h14" stroke="#0B1F3A" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
-
         </div>
+
+        {mobileOpen && (
+          <div className="lg:hidden animate-slide-down border-t border-paper-line bg-white px-4 py-3 space-y-1">
+            {LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => `block px-3 py-2.5 rounded-md text-sm font-medium ${isActive ? 'bg-brass-100 text-brass-dark' : 'text-slate hover:bg-ink-50'}`}>
+                {link.label}
+              </NavLink>
+            ))}
+            <div className="pt-2 mt-2 border-t border-paper-line flex items-center justify-between">
+              <p className="text-sm font-medium text-ink-900">{customer?.name}</p>
+              <button onClick={logout} className="text-sm text-ledger-red font-medium">Sign out</button>
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-7xl w-full mx-auto p-8 flex-1">
+      <main className="max-w-[1300px] w-full mx-auto px-6 py-8 flex-1">
         <Outlet />
       </main>
     </div>

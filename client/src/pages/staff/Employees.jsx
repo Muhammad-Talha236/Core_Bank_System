@@ -4,8 +4,16 @@ import SearchableSelect from '../../components/SearchableSelect';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../../components/ui/Modal';
 
+const ROLE_ICONS = {
+  SuperAdmin: '◆',
+  Manager: '◇',
+  Teller: '●',
+  Auditor: '◌',
+};
+
 export default function Employees() {
   const { employee: currentEmployee } = useAuth();
+
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -13,170 +21,899 @@ export default function Employees() {
   const [error, setError] = useState('');
 
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', roleId: '', branchId: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    roleId: '',
+    branchId: '',
+  });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', roleId: '', branchId: '' });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    roleId: '',
+    branchId: '',
+  });
   const [editError, setEditError] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   async function loadData() {
     try {
-      const [empRes, rolesRes, branchesRes] = await Promise.all([api.get('/employees'), api.get('/employees/roles'), api.get('/branches')]);
-      setEmployees(empRes.data); setRoles(rolesRes.data); setBranches(branchesRes.data);
-    } catch { setError('Could not load employees.'); } finally { setLoading(false); }
+      setError('');
+
+      const [empRes, rolesRes, branchesRes] = await Promise.all([
+        api.get('/employees'),
+        api.get('/employees/roles'),
+        api.get('/branches'),
+      ]);
+
+      setEmployees(empRes.data);
+      setRoles(rolesRes.data);
+      setBranches(branchesRes.data);
+    } catch {
+      setError('Could not load employees.');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   async function handleSubmit(e) {
-    e.preventDefault(); setFormError(''); setSubmitting(true);
+    e.preventDefault();
+    setFormError('');
+    setSubmitting(true);
+
     try {
       await api.post('/employees', form);
-      setForm({ name: '', email: '', password: '', roleId: '', branchId: '' }); setShowCreate(false); loadData();
-    } catch (err) { setFormError(err.response?.data?.error || 'Failed to create employee.'); }
-    finally { setSubmitting(false); }
+
+      setForm({
+        name: '',
+        email: '',
+        password: '',
+        roleId: '',
+        branchId: '',
+      });
+
+      setShowCreate(false);
+      loadData();
+    } catch (err) {
+      setFormError(
+        err.response?.data?.error || 'Failed to create employee.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function openEdit(emp) {
     setEditingEmployee(emp);
-    setEditForm({ name: emp.Name, roleId: emp.RoleID, branchId: emp.BranchID || '' });
+
+    setEditForm({
+      name: emp.Name,
+      roleId: emp.RoleID,
+      branchId: emp.BranchID || '',
+    });
+
     setEditError('');
   }
 
   async function handleEditSubmit(e) {
-    e.preventDefault(); setEditError(''); setEditSubmitting(true);
+    e.preventDefault();
+    setEditError('');
+    setEditSubmitting(true);
+
     try {
-      await api.put(`/employees/${editingEmployee.EmployeeID}`, { name: editForm.name, roleId: editForm.roleId, branchId: editForm.branchId || null });
-      setEditingEmployee(null); loadData();
-    } catch (err) { setEditError(err.response?.data?.error || 'Failed to update employee.'); }
-    finally { setEditSubmitting(false); }
+      await api.put(`/employees/${editingEmployee.EmployeeID}`, {
+        name: editForm.name,
+        roleId: editForm.roleId,
+        branchId: editForm.branchId || null,
+      });
+
+      setEditingEmployee(null);
+      loadData();
+    } catch (err) {
+      setEditError(
+        err.response?.data?.error || 'Failed to update employee.'
+      );
+    } finally {
+      setEditSubmitting(false);
+    }
   }
 
   async function handleStatusChange(employeeId, status) {
-    try { await api.patch(`/employees/${employeeId}/status`, { status }); loadData(); }
-    catch (err) { alert(err.response?.data?.error || 'Could not update status.'); }
+    try {
+      await api.patch(`/employees/${employeeId}/status`, { status });
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not update status.');
+    }
   }
 
-  const statusPill = (status) => status === 'Active' ? 'pill-green' : status === 'Locked' ? 'pill-red' : 'pill-brass';
+  const activeCount = employees.filter((e) => e.Status === 'Active').length;
+  const suspendedCount = employees.filter(
+    (e) => e.Status === 'Suspended'
+  ).length;
+  const lockedCount = employees.filter(
+    (e) => e.Status === 'Locked'
+  ).length;
+
+  const statusConfig = {
+    Active: {
+      dot: 'bg-ledger-green',
+      text: 'text-ledger-green',
+      bg: 'bg-ledger-green-100',
+      label: 'Active',
+    },
+    Suspended: {
+      dot: 'bg-brass-dark',
+      text: 'text-brass-dark',
+      bg: 'bg-brass-100',
+      label: 'Suspended',
+    },
+    Locked: {
+      dot: 'bg-ledger-red',
+      text: 'text-ledger-red',
+      bg: 'bg-ledger-red-100',
+      label: 'Locked',
+    },
+  };
+
+  function getStatus(status) {
+    return statusConfig[status] || {
+      dot: 'bg-slate-400',
+      text: 'text-slate-600',
+      bg: 'bg-slate-100',
+      label: status || 'Unknown',
+    };
+  }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 py-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-8 animate-fade-up">
-        <div>
-          <p className="eyebrow mb-1">Administration</p>
-          <h1 className="font-display text-3xl text-ink-900">Employees</h1>
-          <p className="text-slate-soft mt-1">Manage staff accounts, roles, and branch assignments.</p>
+    <div className="min-h-full bg-[#f6f6f4]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-9">
+
+        {/* =========================================================
+            HEADER
+        ========================================================= */}
+
+        <section className="relative overflow-hidden rounded-[24px] bg-ink-900 text-white mb-7 shadow-[0_14px_40px_rgba(15,23,42,0.10)] animate-fade-up">
+
+          <div
+            className="absolute inset-0 opacity-[0.035]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)',
+              backgroundSize: '34px 34px',
+            }}
+          />
+
+          <div className="absolute -right-24 -top-28 w-80 h-80 rounded-full border border-white/[0.06]" />
+          <div className="absolute -right-8 -top-16 w-52 h-52 rounded-full border border-brass/[0.10]" />
+
+          <div className="relative p-6 sm:p-7 lg:p-8">
+
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-7">
+
+              <div className="flex items-start gap-4">
+
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brass text-ink-900 flex items-center justify-center shrink-0 shadow-lg">
+                  <svg
+                    width="25"
+                    height="25"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                    <circle
+                      cx="9.5"
+                      cy="7"
+                      r="3"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                    />
+                    <path
+                      d="M17 11a3 3 0 1 0 0-6"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M17 14.5h1a4 4 0 0 1 4 4V20"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/35">
+                      Administration
+                    </span>
+
+                    <span className="w-1 h-1 rounded-full bg-white/20" />
+
+                    <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-brass">
+                      Workforce
+                    </span>
+                  </div>
+
+                  <h1 className="font-display text-3xl sm:text-4xl tracking-tight">
+                    Employees
+                  </h1>
+
+                  <p className="text-white/45 text-xs sm:text-sm mt-2 max-w-xl">
+                    Manage staff accounts, permissions, roles and branch
+                    assignments from one workspace.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowCreate(!showCreate);
+                  setFormError('');
+                }}
+                className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all shrink-0 ${
+                  showCreate
+                    ? 'bg-white/10 text-white border border-white/10 hover:bg-white/15'
+                    : 'bg-brass text-ink-900 hover:bg-brass-light shadow-[0_8px_20px_rgba(0,0,0,0.15)]'
+                }`}
+              >
+                {showCreate ? (
+                  <>
+                    <span className="text-base">×</span>
+                    Close
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg leading-none">+</span>
+                    Add Employee
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Header metrics */}
+
+            <div className="grid grid-cols-3 gap-3 sm:gap-5 mt-7 pt-5 border-t border-white/10 max-w-2xl">
+
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-wider text-white/30">
+                  Total Staff
+                </p>
+                <p className="text-xl font-display text-white mt-1">
+                  {employees.length}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-wider text-white/30">
+                  Active
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-ledger-green" />
+                  <p className="text-xl font-display text-white">
+                    {activeCount}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-wider text-white/30">
+                  Attention
+                </p>
+                <p className="text-xl font-display text-brass mt-1">
+                  {suspendedCount + lockedCount}
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* =========================================================
+            CREATE EMPLOYEE
+        ========================================================= */}
+
+        {showCreate && (
+          <section className="bg-white rounded-2xl border border-paper-line shadow-[0_8px_30px_rgba(15,23,42,0.05)] mb-7 overflow-hidden animate-scale-in">
+
+            <div className="px-5 sm:px-6 py-5 border-b border-paper-line flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-slate-soft">
+                  New Staff Account
+                </p>
+                <h2 className="font-display text-xl text-ink-900 mt-1">
+                  Create Employee
+                </h2>
+              </div>
+
+              <span className="hidden sm:block text-[9px] font-mono uppercase tracking-wider text-slate-faint">
+                Secure onboarding
+              </span>
+            </div>
+
+            <form
+              onSubmit={handleSubmit}
+              className="p-5 sm:p-6"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+                <Field label="Full Name">
+                  <input
+                    required
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm({ ...form, name: e.target.value })
+                    }
+                    placeholder="Enter full name"
+                    className="luxury-input"
+                  />
+                </Field>
+
+                <Field label="Email Address">
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                    placeholder="employee@bank.com"
+                    className="luxury-input"
+                  />
+                </Field>
+
+                <Field label="Temporary Password">
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm({ ...form, password: e.target.value })
+                    }
+                    placeholder="Minimum 8 characters"
+                    className="luxury-input"
+                  />
+                </Field>
+
+                <Field label="Role">
+                  <SearchableSelect
+                    placeholder="Select role"
+                    value={form.roleId}
+                    onChange={(v) =>
+                      setForm({ ...form, roleId: v })
+                    }
+                    options={roles.map((r) => ({
+                      value: r.RoleID,
+                      label: r.RoleName,
+                      sublabel: r.Description,
+                    }))}
+                  />
+                </Field>
+
+                <Field label="Branch">
+                  <SearchableSelect
+                    placeholder="Select branch"
+                    value={form.branchId}
+                    onChange={(v) =>
+                      setForm({ ...form, branchId: v })
+                    }
+                    options={branches.map((b) => ({
+                      value: b.BranchID,
+                      label: `${b.BranchName} (${b.BranchCode})`,
+                    }))}
+                  />
+                </Field>
+
+              </div>
+
+              {formError && (
+                <div className="mt-5 rounded-xl px-4 py-3 bg-ledger-red-100 border border-ledger-red/20 text-ledger-red text-sm">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6 pt-5 border-t border-paper-line">
+
+                <p className="text-[11px] text-slate-soft">
+                  The employee will receive access according to the selected role.
+                </p>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-800 disabled:opacity-40 transition-all"
+                >
+                  {submitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Create Employee
+                      <span>→</span>
+                    </>
+                  )}
+                </button>
+
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* =========================================================
+            ERROR / LOADING
+        ========================================================= */}
+
+        {loading && (
+          <div className="bg-white rounded-2xl border border-paper-line p-12 text-center">
+            <div className="w-6 h-6 mx-auto border-2 border-paper-line border-t-ink-900 rounded-full animate-spin" />
+            <p className="text-xs text-slate-soft mt-4">
+              Loading employee directory...
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-xl px-4 py-3 bg-ledger-red-100 border border-ledger-red/20 text-ledger-red text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* =========================================================
+            EMPLOYEE DIRECTORY
+        ========================================================= */}
+
+        {!loading && !error && (
+          <section className="bg-white rounded-2xl border border-paper-line overflow-hidden shadow-[0_8px_30px_rgba(15,23,42,0.045)] animate-fade-up">
+
+            {/* Table header */}
+
+            <div className="px-5 sm:px-6 py-5 border-b border-paper-line flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-[0.16em] text-slate-soft">
+                  Staff Directory
+                </p>
+
+                <div className="flex items-center gap-2 mt-1">
+                  <h2 className="font-display text-xl text-ink-900">
+                    Team Members
+                  </h2>
+
+                  <span className="px-2 py-0.5 rounded-full bg-ink-50 text-ink-700 text-[10px] font-mono">
+                    {employees.length}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-ledger-green" />
+                  <span className="text-slate-soft">
+                    {activeCount} active
+                  </span>
+                </div>
+
+                {suspendedCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brass-dark" />
+                    <span className="text-slate-soft">
+                      {suspendedCount} suspended
+                    </span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Table */}
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[950px]">
+
+                <thead>
+                  <tr className="bg-[#fafaf8] border-b border-paper-line">
+                    <th className="px-5 py-3.5 text-left text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Employee
+                    </th>
+
+                    <th className="px-5 py-3.5 text-left text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Role
+                    </th>
+
+                    <th className="px-5 py-3.5 text-left text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Branch
+                    </th>
+
+                    <th className="px-5 py-3.5 text-left text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-3.5 text-left text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Last Login
+                    </th>
+
+                    <th className="px-5 py-3.5 text-right text-[9px] font-mono uppercase tracking-wider text-slate-soft font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-paper-line">
+
+                  {employees.map((e, index) => {
+                    const status = getStatus(e.Status);
+                    const roleIcon = ROLE_ICONS[e.RoleName] || '•';
+
+                    return (
+                      <tr
+                        key={e.EmployeeID}
+                        className="group hover:bg-[#fcfcfa] transition-colors"
+                      >
+
+                        {/* Employee */}
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+
+                            <div className="w-9 h-9 rounded-xl bg-ink-900 text-brass flex items-center justify-center text-xs font-display shrink-0">
+                              {e.Name
+                                ?.split(' ')
+                                .map((n) => n[0])
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase()}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-ink-900 truncate">
+                                {e.Name}
+                              </p>
+
+                              <p className="text-[11px] text-slate-soft truncate max-w-[230px]">
+                                {e.Email}
+                              </p>
+                            </div>
+
+                          </div>
+                        </td>
+
+                        {/* Role */}
+
+                        <td className="px-5 py-4">
+                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-ink-50 border border-paper-line">
+                            <span className="text-[9px] text-brass-dark">
+                              {roleIcon}
+                            </span>
+
+                            <span className="text-[11px] font-medium text-ink-800">
+                              {e.RoleName}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Branch */}
+
+                        <td className="px-5 py-4">
+                          <p className="text-xs text-ink-800">
+                            {e.BranchName || '—'}
+                          </p>
+
+                          {e.BranchCode && (
+                            <p className="text-[10px] font-mono text-slate-faint mt-0.5">
+                              {e.BranchCode}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Status */}
+
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-medium ${status.bg} ${status.text}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${status.dot}`}
+                            />
+                            {status.label}
+                          </span>
+                        </td>
+
+                        {/* Last login */}
+
+                        <td className="px-5 py-4">
+                          <p className="text-[11px] font-mono text-slate-soft">
+                            {e.LastLogin
+                              ? new Date(e.LastLogin).toLocaleDateString(
+                                  'en-GB',
+                                  {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }
+                                )
+                              : 'Never'}
+                          </p>
+                        </td>
+
+                        {/* Actions */}
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center justify-end gap-2">
+
+                            <button
+                              onClick={() => openEdit(e)}
+                              className="px-3 py-1.5 rounded-lg border border-paper-line text-[10px] font-medium text-ink-800 hover:border-ink-300 hover:bg-ink-50 transition-colors"
+                            >
+                              Edit
+                            </button>
+
+                            {e.EmployeeID !== currentEmployee.employeeId && (
+                              <>
+                                {e.Status !== 'Active' && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusChange(
+                                        e.EmployeeID,
+                                        'Active'
+                                      )
+                                    }
+                                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-ledger-green hover:bg-ledger-green-100 transition-colors"
+                                  >
+                                    Activate
+                                  </button>
+                                )}
+
+                                {e.Status !== 'Suspended' && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusChange(
+                                        e.EmployeeID,
+                                        'Suspended'
+                                      )
+                                    }
+                                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-brass-dark hover:bg-brass-100 transition-colors"
+                                  >
+                                    Suspend
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+
+                </tbody>
+              </table>
+            </div>
+
+            {employees.length === 0 && (
+              <div className="py-16 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-ink-50 mx-auto flex items-center justify-center text-slate-soft">
+                  <span className="text-xl">◌</span>
+                </div>
+
+                <p className="text-sm font-medium text-ink-900 mt-4">
+                  No employees yet
+                </p>
+
+                <p className="text-xs text-slate-soft mt-1">
+                  Create your first staff account to get started.
+                </p>
+              </div>
+            )}
+
+            {/* Footer */}
+
+            {employees.length > 0 && (
+              <div className="px-5 sm:px-6 py-3.5 bg-[#fafaf8] border-t border-paper-line flex items-center justify-between">
+                <p className="text-[10px] font-mono text-slate-faint">
+                  DIRECTORY · {employees.length} RECORDS
+                </p>
+
+                <p className="text-[10px] text-slate-soft">
+                  Staff access is role controlled
+                </p>
+              </div>
+            )}
+
+          </section>
+        )}
+
+        {/* =========================================================
+            EDIT MODAL
+        ========================================================= */}
+
+        <Modal
+          open={!!editingEmployee}
+          onClose={() => setEditingEmployee(null)}
+          title="Edit Employee"
+          subtitle={
+            editingEmployee
+              ? `#${editingEmployee.EmployeeID} — ${editingEmployee.Email}`
+              : ''
+          }
+        >
+          {editingEmployee && (
+            <form
+              onSubmit={handleEditSubmit}
+              className="space-y-5"
+            >
+
+              <div className="rounded-xl bg-ink-50 border border-paper-line p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-ink-900 text-brass flex items-center justify-center text-xs font-display">
+                  {editingEmployee.Name
+                    ?.split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-ink-900">
+                    {editingEmployee.Name}
+                  </p>
+
+                  <p className="text-[11px] text-slate-soft">
+                    Update staff assignment and access
+                  </p>
+                </div>
+              </div>
+
+              <Field label="Full Name">
+                <input
+                  required
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      name: e.target.value,
+                    })
+                  }
+                  className="luxury-input"
+                />
+              </Field>
+
+              <Field label="Role">
+                <SearchableSelect
+                  placeholder="Select role"
+                  value={editForm.roleId}
+                  onChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      roleId: v,
+                    })
+                  }
+                  options={roles.map((r) => ({
+                    value: r.RoleID,
+                    label: r.RoleName,
+                    sublabel: r.Description,
+                  }))}
+                />
+              </Field>
+
+              <Field label="Branch">
+                <SearchableSelect
+                  placeholder="Select branch"
+                  value={editForm.branchId}
+                  onChange={(v) =>
+                    setEditForm({
+                      ...editForm,
+                      branchId: v,
+                    })
+                  }
+                  options={branches.map((b) => ({
+                    value: b.BranchID,
+                    label: `${b.BranchName} (${b.BranchCode})`,
+                  }))}
+                />
+              </Field>
+
+              {editError && (
+                <div className="text-sm text-ledger-red bg-ledger-red-100 border border-ledger-red/20 rounded-xl px-4 py-3">
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="flex-1 py-2.5 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-800 disabled:opacity-40 transition-colors"
+                >
+                  {editSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingEmployee(null)}
+                  className="px-5 py-2.5 rounded-xl border border-paper-line text-sm text-ink-800 hover:bg-ink-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+
+            </form>
+          )}
+        </Modal>
+
+        {/* Bottom note */}
+
+        <div className="flex items-center justify-center gap-2 mt-6 text-[9px] font-mono uppercase tracking-[0.16em] text-slate-faint">
+          <span className="w-1.5 h-1.5 rounded-full bg-ledger-green" />
+          Staff directory secured
+          <span className="text-slate-300">•</span>
+          Role based access enabled
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="btn btn-primary">{showCreate ? 'Cancel' : '+ Add Employee'}</button>
+
       </div>
 
-      {showCreate && (
-        <form onSubmit={handleSubmit} className="panel p-6 mb-8 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-scale-in">
-          <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Full Name</label>
-            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-3 py-2 border border-paper-line rounded-md focus:outline-none focus:ring-2 focus:ring-brass" />
-          </div>
-          <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Email</label>
-            <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-paper-line rounded-md focus:outline-none focus:ring-2 focus:ring-brass" />
-          </div>
-          <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Password</label>
-            <input type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full px-3 py-2 border border-paper-line rounded-md focus:outline-none focus:ring-2 focus:ring-brass" />
-          </div>
-          <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Role</label>
-            <SearchableSelect placeholder="Select role" value={form.roleId} onChange={(v) => setForm({ ...form, roleId: v })}
-              options={roles.map((r) => ({ value: r.RoleID, label: r.RoleName, sublabel: r.Description }))} />
-          </div>
-          <div>
-            <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Branch</label>
-            <SearchableSelect placeholder="Select branch" value={form.branchId} onChange={(v) => setForm({ ...form, branchId: v })}
-              options={branches.map((b) => ({ value: b.BranchID, label: `${b.BranchName} (${b.BranchCode})` }))} />
-          </div>
-          {formError && <div className="sm:col-span-2 text-sm text-ledger-red bg-ledger-red-100 border border-ledger-red/30 rounded-md px-3 py-2">{formError}</div>}
-          <div className="sm:col-span-2">
-            <button type="submit" disabled={submitting} className="btn btn-brass">{submitting ? 'Creating...' : 'Create Employee'}</button>
-          </div>
-        </form>
-      )}
+      {/* Small reusable input styling */}
 
-      {loading && <p className="text-slate-soft">Loading...</p>}
-      {error && <p className="text-ledger-red">{error}</p>}
+      <style>{`
+        .luxury-input {
+          width: 100%;
+          padding: 10px 13px;
+          border: 1px solid #e7e5df;
+          border-radius: 10px;
+          background: #fff;
+          color: #111827;
+          font-size: 13px;
+          outline: none;
+          transition: all 180ms ease;
+        }
 
-      {!loading && !error && (
-        <div className="panel overflow-x-auto animate-fade-up">
-          <table className="w-full ledger-table min-w-[900px]">
-            <thead>
-              <tr className="bg-ink-900 text-paper text-left text-xs font-mono uppercase tracking-wide">
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Email</th>
-                <th className="px-5 py-3 font-medium">Role</th>
-                <th className="px-5 py-3 font-medium">Branch</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Last Login</th>
-                <th className="px-5 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((e) => (
-                <tr key={e.EmployeeID} className="text-sm">
-                  <td className="px-5 py-3 font-medium text-ink-900">{e.Name}</td>
-                  <td className="px-5 py-3 text-slate-soft">{e.Email}</td>
-                  <td className="px-5 py-3"><span className="pill pill-navy">{e.RoleName}</span></td>
-                  <td className="px-5 py-3 text-slate-soft">{e.BranchName || '—'}</td>
-                  <td className="px-5 py-3"><span className={`pill ${statusPill(e.Status)}`}>{e.Status}</span></td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-soft">{e.LastLogin ? new Date(e.LastLogin).toLocaleDateString() : 'Never'}</td>
-                  <td className="px-5 py-3 space-x-3 whitespace-nowrap">
-                    <button onClick={() => openEdit(e)} className="text-xs text-ink-800 hover:underline font-medium">Edit</button>
-                    {e.EmployeeID !== currentEmployee.employeeId && (
-                      <>
-                        {e.Status !== 'Active' && <button onClick={() => handleStatusChange(e.EmployeeID, 'Active')} className="text-xs text-ledger-green hover:underline">Activate</button>}
-                        {e.Status !== 'Suspended' && <button onClick={() => handleStatusChange(e.EmployeeID, 'Suspended')} className="text-xs text-brass-dark hover:underline">Suspend</button>}
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {employees.length === 0 && <p className="text-center text-slate-soft py-8">No employees yet.</p>}
-        </div>
-      )}
+        .luxury-input::placeholder {
+          color: #a1a1aa;
+        }
 
-      <Modal open={!!editingEmployee} onClose={() => setEditingEmployee(null)} title="Edit Employee"
-        subtitle={editingEmployee ? `#${editingEmployee.EmployeeID} — ${editingEmployee.Email}` : ''}>
-        {editingEmployee && (
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Full Name</label>
-              <input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full px-3 py-2 border border-paper-line rounded-md focus:outline-none focus:ring-2 focus:ring-brass" />
-            </div>
-            <div>
-              <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Role</label>
-              <SearchableSelect placeholder="Select role" value={editForm.roleId} onChange={(v) => setEditForm({ ...editForm, roleId: v })}
-                options={roles.map((r) => ({ value: r.RoleID, label: r.RoleName, sublabel: r.Description }))} />
-            </div>
-            <div>
-              <label className="block text-xs font-mono uppercase tracking-wide text-slate-soft mb-2">Branch</label>
-              <SearchableSelect placeholder="Select branch" value={editForm.branchId} onChange={(v) => setEditForm({ ...editForm, branchId: v })}
-                options={branches.map((b) => ({ value: b.BranchID, label: `${b.BranchName} (${b.BranchCode})` }))} />
-            </div>
-            {editError && <div className="text-sm text-ledger-red bg-ledger-red-100 border border-ledger-red/30 rounded-md px-3 py-2">{editError}</div>}
-            <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={editSubmitting} className="btn btn-brass">{editSubmitting ? 'Saving...' : 'Save Changes'}</button>
-              <button type="button" onClick={() => setEditingEmployee(null)} className="btn btn-ghost">Cancel</button>
-            </div>
-          </form>
-        )}
-      </Modal>
+        .luxury-input:hover {
+          border-color: #d4d1c8;
+        }
+
+        .luxury-input:focus {
+          border-color: #b59a5a;
+          box-shadow: 0 0 0 3px rgba(181,154,90,0.10);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
+/* =========================================================
+   FIELD
+========================================================= */
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="block text-[9px] font-mono uppercase tracking-[0.14em] text-slate-soft mb-2">
+        {label}
+      </label>
+
+      {children}
     </div>
   );
 }
