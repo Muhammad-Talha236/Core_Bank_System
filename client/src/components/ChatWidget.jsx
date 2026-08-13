@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import api from '../api/client';
+import { useEffect, useRef, useState } from "react";
+import api from "../api/client";
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [messages, setMessages] = useState([
     {
-      sender: 'ai',
-      text: 'Hello! I’m Meridian Assistant. Ask me anything about bank procedures, policies, or troubleshooting.',
+      sender: "ai",
+      text: "Hello! I’m Meridian Assistant. Ask me anything about bank procedures, policies, or troubleshooting.",
     },
   ]);
 
@@ -18,7 +18,7 @@ export default function ChatWidget() {
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
+        behavior: "smooth",
       });
     }
   }, [messages, isOpen, loading]);
@@ -30,12 +30,12 @@ export default function ChatWidget() {
 
     const question = input.trim();
 
-    setInput('');
+    setInput("");
 
     setMessages((prev) => [
       ...prev,
       {
-        sender: 'user',
+        sender: "user",
         text: question,
       },
     ]);
@@ -43,24 +43,26 @@ export default function ChatWidget() {
     setLoading(true);
 
     try {
-      const { data } = await api.post('/chatbot/ask', {
+      const { data } = await api.post("/chatbot/ask", {
         question,
       });
 
       setMessages((prev) => [
         ...prev,
         {
-          sender: 'ai',
+          sender: "ai",
           text: data.answer,
           sources: data.sources,
         },
       ]);
     } catch (err) {
+      console.error("Chatbot error:", err);
+
       setMessages((prev) => [
         ...prev,
         {
-          sender: 'ai',
-          text: 'Sorry, something went wrong while processing your question. Please try again.',
+          sender: "ai",
+          text: "Sorry, something went wrong while processing your question. Please try again.",
         },
       ]);
     } finally {
@@ -70,7 +72,6 @@ export default function ChatWidget() {
 
   return (
     <div className="fixed bottom-5 right-5 sm:bottom-7 sm:right-7 z-50">
-
       {!isOpen ? (
         <button
           type="button"
@@ -91,14 +92,16 @@ export default function ChatWidget() {
         >
           <span className="absolute inset-0 rounded-2xl bg-[#C7A45D]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-          <span className="
-            relative
-            w-9 h-9
-            rounded-xl
-            bg-[#3A3C32]
-            border border-white/10
-            flex items-center justify-center
-          ">
+          <span
+            className="
+              relative
+              w-9 h-9
+              rounded-xl
+              bg-[#3A3C32]
+              border border-white/10
+              flex items-center justify-center
+            "
+          >
             <svg
               width="17"
               height="17"
@@ -113,24 +116,28 @@ export default function ChatWidget() {
               <path d="M12 18v2" />
             </svg>
 
-            <span className="
-              absolute -right-0.5 -top-0.5
-              w-2.5 h-2.5
-              rounded-full
-              bg-[#86A17A]
-              border-2 border-[#282A22]
+            <span
+              className="
+                absolute -right-0.5 -top-0.5
+                w-2.5 h-2.5
+                rounded-full
+                bg-[#86A17A]
+                border-2 border-[#282A22]
+              "
             />
           </span>
 
           <span className="relative text-left">
-            <span className="
-              block
-              text-[10px]
-              font-mono
-              uppercase
-              tracking-[0.15em]
-              text-[#D4AE61]
-            ">
+            <span
+              className="
+                block
+                text-[10px]
+                font-mono
+                uppercase
+                tracking-[0.15em]
+                text-[#D4AE61]
+              "
+            >
               AI Assistant
             </span>
 
@@ -139,71 +146,80 @@ export default function ChatWidget() {
             </span>
           </span>
 
-          <span className="
-            relative ml-1
-            text-[#CDA85E]
-            text-lg
-            transition-transform
-            duration-300
-            group-hover:translate-x-0.5
-          ">
+          <span
+            className="
+              relative ml-1
+              text-[#CDA85E]
+              text-lg
+              transition-transform
+              duration-300
+              group-hover:translate-x-0.5
+            "
+          >
             →
           </span>
         </button>
       ) : (
-        <div className="
-          w-[calc(100vw-32px)]
-          sm:w-[410px]
-          h-[min(650px,calc(100vh-32px))]
-          flex flex-col
-          overflow-hidden
-          rounded-[26px]
-          bg-[#FBF9F5]
-          border border-[#DED8CC]
-          shadow-[0_25px_80px_rgba(40,38,30,0.20)]
-          animate-scale-in
-        ">
-
-          {/* HEADER */}
-          <div className="
-            relative
-            shrink-0
+        <div
+          className="
+            w-[calc(100vw-32px)]
+            sm:w-[410px]
+            h-[min(650px,calc(100vh-32px))]
+            flex flex-col
             overflow-hidden
-            bg-[#282A22]
-            text-[#F7F4EE]
-            px-5 py-4
-          ">
-            <div className="
-              absolute
-              -right-12
-              -top-16
-              w-40 h-40
-              rounded-full
-              border
-              border-[#D4AE61]/10
-            " />
+            rounded-[26px]
+            bg-[#FBF9F5]
+            border border-[#DED8CC]
+            shadow-[0_25px_80px_rgba(40,38,30,0.20)]
+            animate-scale-in
+          "
+        >
+          {/* HEADER */}
+          <div
+            className="
+              relative
+              shrink-0
+              overflow-hidden
+              bg-[#282A22]
+              text-[#F7F4EE]
+              px-5 py-4
+            "
+          >
+            <div
+              className="
+                absolute
+                -right-12
+                -top-16
+                w-40 h-40
+                rounded-full
+                border
+                border-[#D4AE61]/10
+              "
+            />
 
-            <div className="
-              absolute
-              -right-4
-              -top-8
-              w-24 h-24
-              rounded-full
-              border
-              border-[#D4AE61]/10
-            " />
+            <div
+              className="
+                absolute
+                -right-4
+                -top-8
+                w-24 h-24
+                rounded-full
+                border
+                border-[#D4AE61]/10
+              "
+            />
 
             <div className="relative flex items-center justify-between">
-
               <div className="flex items-center gap-3">
-
-                <div className="
-                  w-10 h-10
-                  rounded-xl
-                  bg-[#3A3C32]
-                  border border-white/10
-                  flex items-center justify-center
-                ">
+                <div
+                  className="
+                    w-10 h-10
+                    rounded-xl
+                    bg-[#3A3C32]
+                    border border-white/10
+                    flex items-center justify-center
+                  "
+                >
                   <svg
                     width="18"
                     height="18"
@@ -225,22 +241,26 @@ export default function ChatWidget() {
                       Meridian Assistant
                     </p>
 
-                    <span className="
-                      w-1.5 h-1.5
-                      rounded-full
-                      bg-[#86A17A]
-                      shadow-[0_0_8px_rgba(134,161,122,0.7)]
-                    " />
+                    <span
+                      className="
+                        w-1.5 h-1.5
+                        rounded-full
+                        bg-[#86A17A]
+                        shadow-[0_0_8px_rgba(134,161,122,0.7)]
+                      "
+                    />
                   </div>
 
-                  <p className="
-                    text-[9px]
-                    font-mono
-                    uppercase
-                    tracking-[0.16em]
-                    text-[#BEBBB0]
-                    mt-0.5
-                  ">
+                  <p
+                    className="
+                      text-[9px]
+                      font-mono
+                      uppercase
+                      tracking-[0.16em]
+                      text-[#BEBBB0]
+                      mt-0.5
+                    "
+                  >
                     Knowledge Assistant
                   </p>
                 </div>
@@ -265,60 +285,66 @@ export default function ChatWidget() {
               </button>
             </div>
 
-            <div className="
-              relative
-              mt-4
-              pt-3
-              border-t border-white/10
-              flex items-center justify-between
-            ">
+            <div
+              className="
+                relative
+                mt-4
+                pt-3
+                border-t border-white/10
+                flex items-center justify-between
+              "
+            >
               <span className="text-[10px] text-[#999A91]">
                 Ask about procedures & policies
               </span>
 
-              <span className="
-                text-[9px]
-                font-mono
-                uppercase
-                tracking-wider
-                text-[#CDA85E]
-              ">
+              <span
+                className="
+                  text-[9px]
+                  font-mono
+                  uppercase
+                  tracking-wider
+                  text-[#CDA85E]
+                "
+              >
                 RAG ACTIVE
               </span>
             </div>
           </div>
 
           {/* MESSAGES */}
-          <div className="
-            flex-1
-            overflow-y-auto
-            px-4 py-5
-            space-y-5
-            bg-[#F7F4EE]
-          ">
-
+          <div
+            className="
+              flex-1
+              overflow-y-auto
+              px-4 py-5
+              space-y-5
+              bg-[#F7F4EE]
+            "
+          >
             {messages.map((msg, index) => {
-              const isUser = msg.sender === 'user';
+              const isUser = msg.sender === "user";
 
               return (
                 <div
                   key={index}
                   className={`flex ${
-                    isUser ? 'justify-end' : 'justify-start'
+                    isUser ? "justify-end" : "justify-start"
                   }`}
                 >
-
                   {!isUser && (
-                    <div className="
-                      shrink-0
-                      w-7 h-7
-                      rounded-lg
-                      bg-[#282A22]
-                      text-[#D4AE61]
-                      flex items-center justify-center
-                      mr-2
-                      mt-1
-                    ">
+                    <div
+                      className="
+                        shrink-0
+                        w-7 h-7
+                        rounded-lg
+                        bg-[#282A22]
+                        text-[#D4AE61]
+                        flex items-center justify-center
+                        mr-2
+                        mt-1
+                      "
+                    >
                       <svg
                         width="13"
                         height="13"
@@ -333,8 +359,11 @@ export default function ChatWidget() {
                     </div>
                   )}
 
-                  <div className={`max-w-[82%] ${isUser ? '' : 'mr-5'}`}>
-
+                  <div
+                    className={`max-w-[82%] ${
+                      isUser ? "" : "mr-5"
+                    }`}
+                  >
                     <div
                       className={
                         isUser
@@ -361,44 +390,53 @@ export default function ChatWidget() {
                           `
                       }
                     >
-                      <p className="whitespace-pre-wrap">
-                        {msg.text}
-                      </p>
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
                     </div>
 
                     {!isUser &&
                       msg.sources &&
                       msg.sources.length > 0 && (
-                        <div className="
-                          mt-2.5
-                          rounded-xl
-                          border border-[#E4DED4]
-                          bg-[#FBF9F5]
-                          px-3 py-2.5
-                        ">
-                          <div className="
-                            flex items-center gap-1.5
-                            mb-1.5
-                          ">
-                            <span className="
-                              text-[9px]
-                              font-mono
-                              uppercase
-                              tracking-wider
-                              text-[#A47D32]
-                            ">
+                        <div
+                          className="
+                            mt-2.5
+                            rounded-xl
+                            border border-[#E4DED4]
+                            bg-[#FBF9F5]
+                            px-3 py-2.5
+                          "
+                        >
+                          <div
+                            className="
+                              flex items-center gap-1.5
+                              mb-1.5
+                            "
+                          >
+                            <span
+                              className="
+                                text-[9px]
+                                font-mono
+                                uppercase
+                                tracking-wider
+                                text-[#A47D32]
+                              "
+                            >
                               Sources
                             </span>
                           </div>
 
-                          <p className="
-                            text-[10px]
-                            leading-4
-                            text-[#7F8079]
-                          ">
+                          <p
+                            className="
+                              text-[10px]
+                              leading-4
+                              text-[#7F8079]
+                            "
+                          >
                             {msg.sources
-                              .map((source) => source.section || source.doc)
-                              .join(' · ')}
+                              .map(
+                                (source) =>
+                                  source.section || source.doc
+                              )
+                              .join(" · ")}
                           </p>
                         </div>
                       )}
@@ -410,34 +448,30 @@ export default function ChatWidget() {
             {/* LOADING */}
             {loading && (
               <div className="flex items-start">
-
-                <div className="
-                  shrink-0
-                  w-7 h-7
-                  rounded-lg
-                  bg-[#282A22]
-                  text-[#D4AE61]
-                  flex items-center justify-center
-                  mr-2
-                ">
+                <div
+                  className="
+                    shrink-0
+                    w-7 h-7
+                    rounded-lg
+                    bg-[#282A22]
+                    text-[#D4AE61]
+                    flex items-center justify-center
+                    mr-2
+                  "
+                >
                   ✦
                 </div>
 
-                <div className="
-                  px-4 py-3
-                  rounded-[18px]
-                  rounded-bl-md
-                  bg-white
-                  border border-[#E4DED4]
-                  flex items-center gap-1.5
-                ">
-                  <span className="
-                    w-1.5 h-1.5
-                    rounded-full
-                    bg-[#B99551]
-                    animate-bounce
-                  " />
-
+                <div
+                  className="
+                    px-4 py-3
+                    rounded-[18px]
+                    rounded-bl-md
+                    bg-white
+                    border border-[#E4DED4]
+                    flex items-center gap-1.5
+                  "
+                >
                   <span
                     className="
                       w-1.5 h-1.5
@@ -445,7 +479,6 @@ export default function ChatWidget() {
                       bg-[#B99551]
                       animate-bounce
                     "
-                    style={{ animationDelay: '120ms' }}
                   />
 
                   <span
@@ -455,14 +488,26 @@ export default function ChatWidget() {
                       bg-[#B99551]
                       animate-bounce
                     "
-                    style={{ animationDelay: '240ms' }}
+                    style={{ animationDelay: "120ms" }}
                   />
 
-                  <span className="
-                    ml-2
-                    text-[10px]
-                    text-[#999A92]
-                  ">
+                  <span
+                    className="
+                      w-1.5 h-1.5
+                      rounded-full
+                      bg-[#B99551]
+                      animate-bounce
+                    "
+                    style={{ animationDelay: "240ms" }}
+                  />
+
+                  <span
+                    className="
+                      ml-2
+                      text-[10px]
+                      text-[#999A92]
+                    "
+                  >
                     Searching knowledge...
                   </span>
                 </div>
@@ -482,18 +527,19 @@ export default function ChatWidget() {
               border-t border-[#E4DED4]
             "
           >
-            <div className="
-              flex items-center gap-2
-              rounded-2xl
-              bg-[#F7F4EE]
-              border border-[#DED8CC]
-              p-1.5
-              focus-within:border-[#B99551]
-              focus-within:ring-4
-              focus-within:ring-[#C7A45D]/10
-              transition-all
-            ">
-
+            <div
+              className="
+                flex items-center gap-2
+                rounded-2xl
+                bg-[#F7F4EE]
+                border border-[#DED8CC]
+                p-1.5
+                focus-within:border-[#B99551]
+                focus-within:ring-4
+                focus-within:ring-[#C7A45D]/10
+                transition-all
+              "
+            >
               <input
                 type="text"
                 value={input}
@@ -529,14 +575,16 @@ export default function ChatWidget() {
                 "
               >
                 {loading ? (
-                  <span className="
-                    w-4 h-4
-                    rounded-full
-                    border-2
-                    border-[#D4AE61]/30
-                    border-t-[#D4AE61]
-                    animate-spin
-                  " />
+                  <span
+                    className="
+                      w-4 h-4
+                      rounded-full
+                      border-2
+                      border-[#D4AE61]/30
+                      border-t-[#D4AE61]
+                      animate-spin
+                    "
+                  />
                 ) : (
                   <svg
                     width="16"
@@ -553,21 +601,25 @@ export default function ChatWidget() {
               </button>
             </div>
 
-            <div className="
-              flex items-center
-              justify-center
-              gap-1.5
-              mt-2
-            ">
+            <div
+              className="
+                flex items-center
+                justify-center
+                gap-1.5
+                mt-2
+              "
+            >
               <span className="text-[9px] text-[#A1A19A]">
                 Meridian AI Assistant
               </span>
 
-              <span className="
-                w-0.5 h-0.5
-                rounded-full
-                bg-[#C2BFB7]
-              " />
+              <span
+                className="
+                  w-0.5 h-0.5
+                  rounded-full
+                  bg-[#C2BFB7]
+                "
+              />
 
               <span className="text-[9px] text-[#A1A19A]">
                 Secure knowledge base
