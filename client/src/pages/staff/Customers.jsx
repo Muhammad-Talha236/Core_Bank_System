@@ -3,6 +3,33 @@ import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
 const SYSTEM_WIDE_ROLES = ['SuperAdmin', 'Auditor'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateCustomerForm(form) {
+  const errors = {};
+
+  if (!form.name || form.name.trim().length < 3) {
+    errors.name = 'Name must be at least 3 characters';
+  }
+
+  const cnicDigits = form.cnic.replace(/\D/g, ''); // sirf digits nikaalo
+  if (cnicDigits.length !== 13) {
+    errors.cnic = 'CNIC must be exactly 13 digits (e.g. 12345-1234567-1)';
+  }
+
+  const contactDigits = form.contact.replace(/\D/g, '');
+  if (contactDigits.length !== 11) {
+    errors.contact = 'Mobile number must be exactly 11 digits (e.g. 03001234567)';
+  } else if (!contactDigits.startsWith('03')) {
+    errors.contact = 'Mobile number must start with 03';
+  }
+
+  if (!EMAIL_REGEX.test(form.gmail.trim())) {
+    errors.gmail = 'Please enter a valid email address';
+  }
+
+  return errors;
+}
 
 export default function Customers() {
   const { employee } = useAuth();
@@ -19,6 +46,7 @@ export default function Customers() {
     contact: '',
     gmail: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,10 +68,23 @@ export default function Customers() {
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    const errors = validateCustomerForm(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFormError('Please fix the highlighted fields before submitting.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await api.post('/customers', form);
+      await api.post('/customers', {
+        name: form.name.trim(),
+        cnic: form.cnic.replace(/\D/g, ''),
+        contact: form.contact.replace(/\D/g, ''),
+        gmail: form.gmail.trim().toLowerCase(),
+      });
 
       setForm({
         name: '',
@@ -51,6 +92,7 @@ export default function Customers() {
         contact: '',
         gmail: '',
       });
+      setFieldErrors({});
 
       setShowForm(false);
       loadCustomers();
@@ -60,6 +102,13 @@ export default function Customers() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function updateField(key, value) {
+    setForm({ ...form, [key]: value });
+    if (fieldErrors[key]) {
+      setFieldErrors({ ...fieldErrors, [key]: undefined });
     }
   }
 
@@ -81,6 +130,32 @@ export default function Customers() {
 
     return colors[id % colors.length];
   }
+
+  const FIELDS = [
+    {
+      key: 'name',
+      label: 'Full Name',
+      placeholder: 'Enter full name',
+    },
+    {
+      key: 'cnic',
+      label: 'CNIC (13 digits)',
+      placeholder: '12345-1234567-1',
+      maxLength: 15,
+    },
+    {
+      key: 'contact',
+      label: 'Contact (11 digits)',
+      placeholder: '03XX-XXXXXXX',
+      maxLength: 12,
+    },
+    {
+      key: 'gmail',
+      label: 'Email Address',
+      type: 'email',
+      placeholder: 'customer@gmail.com',
+    },
+  ];
 
   return (
     <div className="min-h-full bg-[#f7f8fa]">
@@ -184,29 +259,7 @@ export default function Customers() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {[
-                {
-                  key: 'name',
-                  label: 'Full Name',
-                  placeholder: 'Enter full name',
-                },
-                {
-                  key: 'cnic',
-                  label: 'CNIC',
-                  placeholder: '12345-1234567-1',
-                },
-                {
-                  key: 'contact',
-                  label: 'Contact',
-                  placeholder: '03XX-XXXXXXX',
-                },
-                {
-                  key: 'gmail',
-                  label: 'Email Address',
-                  type: 'email',
-                  placeholder: 'customer@gmail.com',
-                },
-              ].map((f) => (
+              {FIELDS.map((f) => (
                 <div key={f.key}>
                   <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-soft mb-2">
                     {f.label}
@@ -215,16 +268,20 @@ export default function Customers() {
                   <input
                     type={f.type || 'text'}
                     required
+                    maxLength={f.maxLength}
                     placeholder={f.placeholder}
                     value={form[f.key]}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        [f.key]: e.target.value,
-                      })
-                    }
-                    className="w-full h-11 px-3.5 bg-[#fafafa] border border-paper-line rounded-xl text-sm text-ink-900 placeholder:text-slate-soft/60 focus:outline-none focus:bg-white focus:border-brass focus:ring-4 focus:ring-brass/10 transition-all"
+                    onChange={(e) => updateField(f.key, e.target.value)}
+                    className={`w-full h-11 px-3.5 bg-[#fafafa] border rounded-xl text-sm text-ink-900 placeholder:text-slate-soft/60 focus:outline-none focus:bg-white focus:ring-4 transition-all ${
+                      fieldErrors[f.key]
+                        ? 'border-ledger-red focus:border-ledger-red focus:ring-ledger-red/10'
+                        : 'border-paper-line focus:border-brass focus:ring-brass/10'
+                    }`}
                   />
+
+                  {fieldErrors[f.key] && (
+                    <p className="text-xs text-ledger-red mt-1.5">{fieldErrors[f.key]}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -252,7 +309,11 @@ export default function Customers() {
             <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setFieldErrors({});
+                  setFormError('');
+                }}
                 className="h-11 px-5 rounded-xl border border-paper-line text-sm font-medium text-slate hover:bg-paper transition-colors"
               >
                 Cancel

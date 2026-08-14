@@ -11,6 +11,62 @@ const ROLE_ICONS = {
   Auditor: '◌',
 };
 
+// --- Validation helpers -----------------------------------------------
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[A-Za-z\s]+$/; // letters and spaces only
+
+// Strips anything that isn't a letter or space, as the user types.
+function onlyLetters(value) {
+  return value.replace(/[^A-Za-z\s]/g, '');
+}
+
+function validateCreateForm(form) {
+  const errors = {};
+
+  const trimmedName = form.name.trim();
+  if (trimmedName.length < 3) {
+    errors.name = 'Name must be at least 3 characters';
+  } else if (!NAME_REGEX.test(trimmedName)) {
+    errors.name = 'Name can only contain letters and spaces';
+  }
+
+  if (!EMAIL_REGEX.test(form.email.trim())) {
+    errors.email = 'Please enter a valid email address';
+  }
+
+  if (!form.password || form.password.length < 8) {
+    errors.password = 'Password must be at least 8 characters';
+  }
+
+  if (!form.roleId) {
+    errors.roleId = 'Please select a role';
+  }
+
+  if (!form.branchId) {
+    errors.branchId = 'Please select a branch';
+  }
+
+  return errors;
+}
+
+function validateEditForm(form) {
+  const errors = {};
+
+  const trimmedName = form.name.trim();
+  if (trimmedName.length < 3) {
+    errors.name = 'Name must be at least 3 characters';
+  } else if (!NAME_REGEX.test(trimmedName)) {
+    errors.name = 'Name can only contain letters and spaces';
+  }
+
+  if (!form.roleId) {
+    errors.roleId = 'Please select a role';
+  }
+
+  return errors;
+}
+// ------------------------------------------------------------------------
+
 export default function Employees() {
   const { employee: currentEmployee } = useAuth();
 
@@ -28,6 +84,7 @@ export default function Employees() {
     roleId: '',
     branchId: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,6 +94,7 @@ export default function Employees() {
     roleId: '',
     branchId: '',
   });
+  const [editFieldErrors, setEditFieldErrors] = useState({});
   const [editError, setEditError] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
@@ -64,13 +122,39 @@ export default function Employees() {
     loadData();
   }, []);
 
+  function updateField(key, value) {
+    setForm({ ...form, [key]: value });
+    if (fieldErrors[key]) {
+      setFieldErrors({ ...fieldErrors, [key]: undefined });
+    }
+  }
+
+  function updateEditField(key, value) {
+    setEditForm({ ...editForm, [key]: value });
+    if (editFieldErrors[key]) {
+      setEditFieldErrors({ ...editFieldErrors, [key]: undefined });
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    const errors = validateCreateForm(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFormError('Please fix the highlighted fields before submitting.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await api.post('/employees', form);
+      await api.post('/employees', {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+      });
 
       setForm({
         name: '',
@@ -79,6 +163,7 @@ export default function Employees() {
         roleId: '',
         branchId: '',
       });
+      setFieldErrors({});
 
       setShowCreate(false);
       loadData();
@@ -100,17 +185,26 @@ export default function Employees() {
       branchId: emp.BranchID || '',
     });
 
+    setEditFieldErrors({});
     setEditError('');
   }
 
   async function handleEditSubmit(e) {
     e.preventDefault();
     setEditError('');
+
+    const errors = validateEditForm(editForm);
+    setEditFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setEditError('Please fix the highlighted fields before submitting.');
+      return;
+    }
+
     setEditSubmitting(true);
 
     try {
       await api.put(`/employees/${editingEmployee.EmployeeID}`, {
-        name: editForm.name,
+        name: editForm.name.trim(),
         roleId: editForm.roleId,
         branchId: editForm.branchId || null,
       });
@@ -264,6 +358,7 @@ export default function Employees() {
                 onClick={() => {
                   setShowCreate(!showCreate);
                   setFormError('');
+                  setFieldErrors({});
                 }}
                 className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all shrink-0 ${
                   showCreate
@@ -351,52 +446,46 @@ export default function Employees() {
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-                <Field label="Full Name">
+                <Field label="Full Name" error={fieldErrors.name}>
                   <input
                     required
                     value={form.name}
                     onChange={(e) =>
-                      setForm({ ...form, name: e.target.value })
+                      updateField('name', onlyLetters(e.target.value))
                     }
                     placeholder="Enter full name"
-                    className="luxury-input"
+                    className={`luxury-input ${fieldErrors.name ? 'luxury-input-error' : ''}`}
                   />
                 </Field>
 
-                <Field label="Email Address">
+                <Field label="Email Address" error={fieldErrors.email}>
                   <input
                     type="email"
                     required
                     value={form.email}
-                    onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
-                    }
+                    onChange={(e) => updateField('email', e.target.value)}
                     placeholder="employee@bank.com"
-                    className="luxury-input"
+                    className={`luxury-input ${fieldErrors.email ? 'luxury-input-error' : ''}`}
                   />
                 </Field>
 
-                <Field label="Temporary Password">
+                <Field label="Temporary Password" error={fieldErrors.password}>
                   <input
                     type="password"
                     required
                     minLength={8}
                     value={form.password}
-                    onChange={(e) =>
-                      setForm({ ...form, password: e.target.value })
-                    }
+                    onChange={(e) => updateField('password', e.target.value)}
                     placeholder="Minimum 8 characters"
-                    className="luxury-input"
+                    className={`luxury-input ${fieldErrors.password ? 'luxury-input-error' : ''}`}
                   />
                 </Field>
 
-                <Field label="Role">
+                <Field label="Role" error={fieldErrors.roleId}>
                   <SearchableSelect
                     placeholder="Select role"
                     value={form.roleId}
-                    onChange={(v) =>
-                      setForm({ ...form, roleId: v })
-                    }
+                    onChange={(v) => updateField('roleId', v)}
                     options={roles.map((r) => ({
                       value: r.RoleID,
                       label: r.RoleName,
@@ -405,13 +494,11 @@ export default function Employees() {
                   />
                 </Field>
 
-                <Field label="Branch">
+                <Field label="Branch" error={fieldErrors.branchId}>
                   <SearchableSelect
                     placeholder="Select branch"
                     value={form.branchId}
-                    onChange={(v) =>
-                      setForm({ ...form, branchId: v })
-                    }
+                    onChange={(v) => updateField('branchId', v)}
                     options={branches.map((b) => ({
                       value: b.BranchID,
                       label: `${b.BranchName} (${b.BranchCode})`,
@@ -781,30 +868,22 @@ export default function Employees() {
                 </div>
               </div>
 
-              <Field label="Full Name">
+              <Field label="Full Name" error={editFieldErrors.name}>
                 <input
                   required
                   value={editForm.name}
                   onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      name: e.target.value,
-                    })
+                    updateEditField('name', onlyLetters(e.target.value))
                   }
-                  className="luxury-input"
+                  className={`luxury-input ${editFieldErrors.name ? 'luxury-input-error' : ''}`}
                 />
               </Field>
 
-              <Field label="Role">
+              <Field label="Role" error={editFieldErrors.roleId}>
                 <SearchableSelect
                   placeholder="Select role"
                   value={editForm.roleId}
-                  onChange={(v) =>
-                    setEditForm({
-                      ...editForm,
-                      roleId: v,
-                    })
-                  }
+                  onChange={(v) => updateEditField('roleId', v)}
                   options={roles.map((r) => ({
                     value: r.RoleID,
                     label: r.RoleName,
@@ -817,12 +896,7 @@ export default function Employees() {
                 <SearchableSelect
                   placeholder="Select branch"
                   value={editForm.branchId}
-                  onChange={(v) =>
-                    setEditForm({
-                      ...editForm,
-                      branchId: v,
-                    })
-                  }
+                  onChange={(v) => updateEditField('branchId', v)}
                   options={branches.map((b) => ({
                     value: b.BranchID,
                     label: `${b.BranchName} (${b.BranchCode})`,
@@ -896,6 +970,14 @@ export default function Employees() {
           border-color: #b59a5a;
           box-shadow: 0 0 0 3px rgba(181,154,90,0.10);
         }
+
+        .luxury-input-error {
+          border-color: #b3261e !important;
+        }
+
+        .luxury-input-error:focus {
+          box-shadow: 0 0 0 3px rgba(179,38,30,0.10);
+        }
       `}</style>
     </div>
   );
@@ -906,7 +988,7 @@ export default function Employees() {
    FIELD
 ========================================================= */
 
-function Field({ label, children }) {
+function Field({ label, error, children }) {
   return (
     <div>
       <label className="block text-[9px] font-mono uppercase tracking-[0.14em] text-slate-soft mb-2">
@@ -914,6 +996,10 @@ function Field({ label, children }) {
       </label>
 
       {children}
+
+      {error && (
+        <p className="text-[11px] text-ledger-red mt-1.5">{error}</p>
+      )}
     </div>
   );
 }

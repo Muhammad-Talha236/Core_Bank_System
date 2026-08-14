@@ -1,6 +1,48 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 
+// --- Validation helpers -----------------------------------------------
+const NAME_REGEX = /^[A-Za-z\s]+$/; // letters and spaces only
+
+// Strips anything that isn't a letter or space, as the user types.
+function onlyLetters(value) {
+  return value.replace(/[^A-Za-z\s]/g, '');
+}
+
+// Branch code: letters + numbers only, no spaces/dashes/symbols. Force uppercase live.
+function onlyAlphaNumeric(value) {
+  return value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+function validateBranchForm(form) {
+  const errors = {};
+
+  const trimmedName = form.branchName.trim();
+  if (trimmedName.length < 3) {
+    errors.branchName = 'Branch name must be at least 3 characters';
+  } else if (!NAME_REGEX.test(trimmedName)) {
+    errors.branchName = 'Branch name can only contain letters and spaces';
+  }
+
+  const code = form.branchCode.trim();
+  if (code.length < 2 || code.length > 10) {
+    errors.branchCode = 'Branch code must be 2-10 characters';
+  } else if (!/^[A-Za-z0-9]+$/.test(code)) {
+    errors.branchCode = 'Branch code can only contain letters and numbers';
+  }
+
+  if (form.city && !NAME_REGEX.test(form.city.trim())) {
+    errors.city = 'City can only contain letters and spaces';
+  }
+
+  if (form.address && form.address.trim().length < 5) {
+    errors.address = 'Address looks too short';
+  }
+
+  return errors;
+}
+// ------------------------------------------------------------------------
+
 export default function Branches() {
   const [branches, setBranches] = useState([]);
   const [stats, setStats] = useState({});
@@ -14,6 +56,7 @@ export default function Branches() {
     city: '',
     address: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,13 +107,33 @@ export default function Branches() {
     loadBranches();
   }, []);
 
+  function updateField(key, value) {
+    setForm({ ...form, [key]: value });
+    if (fieldErrors[key]) {
+      setFieldErrors({ ...fieldErrors, [key]: undefined });
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    const errors = validateBranchForm(form);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFormError('Please fix the highlighted fields before submitting.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await api.post('/branches', form);
+      await api.post('/branches', {
+        branchName: form.branchName.trim(),
+        branchCode: form.branchCode.trim().toUpperCase(),
+        city: form.city.trim() || null,
+        address: form.address.trim() || null,
+      });
 
       setForm({
         branchName: '',
@@ -78,6 +141,7 @@ export default function Branches() {
         city: '',
         address: '',
       });
+      setFieldErrors({});
 
       setShowForm(false);
       loadBranches();
@@ -116,6 +180,36 @@ export default function Branches() {
 
     return `Rs ${value.toLocaleString('en-PK')}`;
   };
+
+  const FIELDS = [
+    {
+      key: 'branchName',
+      label: 'Branch Name',
+      placeholder: 'e.g. Main City Branch',
+      required: true,
+      onChange: (v) => updateField('branchName', onlyLetters(v)),
+    },
+    {
+      key: 'branchCode',
+      label: 'Branch Code',
+      placeholder: 'e.g. LHR01',
+      required: true,
+      maxLength: 10,
+      onChange: (v) => updateField('branchCode', onlyAlphaNumeric(v)),
+    },
+    {
+      key: 'city',
+      label: 'City',
+      placeholder: 'e.g. Lahore',
+      onChange: (v) => updateField('city', onlyLetters(v)),
+    },
+    {
+      key: 'address',
+      label: 'Address',
+      placeholder: 'Branch address',
+      onChange: (v) => updateField('address', v),
+    },
+  ];
 
   return (
     <div className="min-h-full bg-[#f6f7f9]">
@@ -196,7 +290,11 @@ export default function Branches() {
 
               {/* Add button */}
               <button
-                onClick={() => setShowForm(!showForm)}
+                onClick={() => {
+                  setShowForm(!showForm);
+                  setFormError('');
+                  setFieldErrors({});
+                }}
                 className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-white text-ink-900 px-5 py-3 text-sm font-medium hover:bg-brass transition-all duration-200 shadow-sm"
               >
                 <span className="text-lg leading-none">
@@ -259,30 +357,7 @@ export default function Branches() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-              {[
-                {
-                  key: 'branchName',
-                  label: 'Branch Name',
-                  placeholder: 'e.g. Main City Branch',
-                  required: true,
-                },
-                {
-                  key: 'branchCode',
-                  label: 'Branch Code',
-                  placeholder: 'e.g. LHR01',
-                  required: true,
-                },
-                {
-                  key: 'city',
-                  label: 'City',
-                  placeholder: 'e.g. Lahore',
-                },
-                {
-                  key: 'address',
-                  label: 'Address',
-                  placeholder: 'Branch address',
-                },
-              ].map((field) => (
+              {FIELDS.map((field) => (
                 <div key={field.key}>
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-soft mb-2">
                     {field.label}
@@ -290,16 +365,22 @@ export default function Branches() {
 
                   <input
                     required={field.required}
+                    maxLength={field.maxLength}
                     placeholder={field.placeholder}
                     value={form[field.key]}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        [field.key]: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-paper-line rounded-xl bg-white text-sm text-ink-900 placeholder:text-slate-faint focus:outline-none focus:ring-2 focus:ring-brass/50 focus:border-brass transition-all"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    className={`w-full px-4 py-3 border rounded-xl bg-white text-sm text-ink-900 placeholder:text-slate-faint focus:outline-none focus:ring-2 transition-all ${
+                      fieldErrors[field.key]
+                        ? 'border-ledger-red focus:ring-ledger-red/30 focus:border-ledger-red'
+                        : 'border-paper-line focus:ring-brass/50 focus:border-brass'
+                    }`}
                   />
+
+                  {fieldErrors[field.key] && (
+                    <p className="text-[11px] text-ledger-red mt-1.5">
+                      {fieldErrors[field.key]}
+                    </p>
+                  )}
                 </div>
               ))}
 

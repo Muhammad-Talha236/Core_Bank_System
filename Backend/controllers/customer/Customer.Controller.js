@@ -3,6 +3,20 @@ const crypto = require('crypto');
 
 const SYSTEM_WIDE_ROLES = ['SuperAdmin', 'Auditor'];
 
+// --- Validation helpers -----------------------------------------------
+// Client-side checks can always be bypassed (Postman, curl, etc), so the
+// same rules are enforced again here before anything touches the DB.
+function isValidCnic(cnic) {
+  return /^\d{13}$/.test((cnic || '').replace(/\D/g, ''));
+}
+function isValidPhone(phone) {
+  return /^03\d{9}$/.test((phone || '').replace(/\D/g, ''));
+}
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+}
+// ------------------------------------------------------------------------
+
 // helper: 8-digit account number (10,000,000 .. 99,999,999)
 function generateAccountNumber() {
   try {
@@ -57,6 +71,29 @@ exports.addCustomer = async (req, res) => {
     return res.status(400).json({ error: 'name, cnic, contact and gmail are all required' });
   }
 
+  if (name.trim().length < 3) {
+    return res.status(400).json({ error: 'Name must be at least 3 characters' });
+  }
+
+  if (!isValidCnic(cnic)) {
+    return res.status(400).json({ error: 'CNIC must be exactly 13 digits' });
+  }
+
+  if (!isValidPhone(contact)) {
+    return res.status(400).json({ error: 'Contact number must be exactly 11 digits and start with 03' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address' });
+  }
+
+  // Store the cleaned/normalized versions, not whatever formatting the
+  // client happened to send (dashes, spaces, mixed case email, etc).
+  const cleanCnic = cnic.replace(/\D/g, '');
+  const cleanContact = contact.replace(/\D/g, '');
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanName = name.trim();
+
   const targetBranchId = req.employee.roleName === 'SuperAdmin'
     ? (branchId || req.employee.branchId)
     : req.employee.branchId;
@@ -73,7 +110,7 @@ exports.addCustomer = async (req, res) => {
       `INSERT INTO "Customer" ("Name", "CNIC", "Contact", "Gmail", "BranchID")
        VALUES ($1, $2, $3, $4, $5)
        RETURNING "CustomerID"`,
-      [name, cnic, contact, email, targetBranchId]
+      [cleanName, cleanCnic, cleanContact, cleanEmail, targetBranchId]
     );
     const customerId = custResult.rows[0].CustomerID;
 
@@ -116,11 +153,11 @@ exports.addCustomer = async (req, res) => {
       [accountNo, 3.50]
     );
 
-   await client.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
-   VALUES ($1, $2, $3, $4, $5, $6)`,
-  ['INSERT', 'Account', accountNo, name, req.employee.employeeId, `Account created for customer ${customerId}`]
-);
+    await client.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      ['INSERT', 'Account', accountNo, cleanName, req.employee.employeeId, `Account created for customer ${customerId}`]
+    );
 
     await client.query('COMMIT');
 

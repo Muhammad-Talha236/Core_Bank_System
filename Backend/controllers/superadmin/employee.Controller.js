@@ -1,6 +1,17 @@
 const pool = require('../../config/db');
 const bcrypt = require('bcryptjs');
 
+// --- Validation helpers -----------------------------------------------
+// Client-side checks can always be bypassed (Postman, curl, etc), so the
+// same rules are enforced again here before anything touches the DB.
+function isValidName(name) {
+  return /^[A-Za-z\s]{3,}$/.test((name || '').trim());
+}
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
+}
+// ------------------------------------------------------------------------
+
 // Get all employees (with role and branch names attached)
 exports.getAllEmployees = async (req, res) => {
   try {
@@ -39,9 +50,21 @@ exports.createEmployee = async (req, res) => {
   if (!name || !email || !password || !roleId) {
     return res.status(400).json({ error: 'name, email, password and roleId are required' });
   }
+
+  if (!isValidName(name)) {
+    return res.status(400).json({ error: 'Name must be at least 3 characters and contain letters only' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Please provide a valid email address' });
+  }
+
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
+
+  const cleanName = name.trim();
+  const cleanEmail = email.trim().toLowerCase();
 
   try {
     const passwordHash = await bcrypt.hash(password, 10);
@@ -50,14 +73,14 @@ exports.createEmployee = async (req, res) => {
       `INSERT INTO "Employee" ("Name", "Email", "PasswordHash", "RoleID", "BranchID", "Status")
        VALUES ($1, $2, $3, $4, $5, 'Active')
        RETURNING "EmployeeID"`,
-      [name, email, passwordHash, roleId, branchId || null]
+      [cleanName, cleanEmail, passwordHash, roleId, branchId || null]
     );
 
-   await pool.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
-   VALUES ('INSERT', 'Employee', $1, $2, $3, $4)`,
-  [rows[0].EmployeeID, req.employee.name, req.employee.employeeId, `Employee "${name}" (${email}) created by ${req.employee.name}`]
-);
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+       VALUES ('INSERT', 'Employee', $1, $2, $3, $4)`,
+      [rows[0].EmployeeID, req.employee.name, req.employee.employeeId, `Employee "${cleanName}" (${cleanEmail}) created by ${req.employee.name}`]
+    );
 
     res.json({ success: true, employeeId: rows[0].EmployeeID, message: 'Employee created successfully' });
   } catch (error) {
@@ -77,6 +100,12 @@ exports.updateEmployee = async (req, res) => {
   const { employeeId } = req.params;
   const { name, roleId, branchId } = req.body;
 
+  if (name !== undefined && name !== null && !isValidName(name)) {
+    return res.status(400).json({ error: 'Name must be at least 3 characters and contain letters only' });
+  }
+
+  const cleanName = name ? name.trim() : null;
+
   try {
     const { rows } = await pool.query(
       `UPDATE "Employee"
@@ -85,18 +114,18 @@ exports.updateEmployee = async (req, res) => {
            "BranchID" = COALESCE($3, "BranchID")
        WHERE "EmployeeID" = $4
        RETURNING "EmployeeID"`,
-      [name || null, roleId || null, branchId || null, employeeId]
+      [cleanName, roleId || null, branchId || null, employeeId]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-   await pool.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
-   VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
-  [employeeId, req.employee.name, req.employee.employeeId, `Employee #${employeeId} updated by ${req.employee.name}`]
-);
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+       VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
+      [employeeId, req.employee.name, req.employee.employeeId, `Employee #${employeeId} updated by ${req.employee.name}`]
+    );
     res.json({ success: true, message: 'Employee updated successfully' });
   } catch (error) {
     console.error('Error updating employee:', error);
@@ -150,11 +179,11 @@ exports.updateEmployeeStatus = async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-   await pool.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
-   VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
-  [employeeId, req.employee.name, req.employee.employeeId, `Employee "${rows[0].Name}" status changed to ${status} by ${req.employee.name}`]
-);
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
+       VALUES ('UPDATE', 'Employee', $1, $2, $3, $4)`,
+      [employeeId, req.employee.name, req.employee.employeeId, `Employee "${rows[0].Name}" status changed to ${status} by ${req.employee.name}`]
+    );
 
     res.json({ success: true, message: `Employee status updated to ${status}` });
   } catch (error) {
