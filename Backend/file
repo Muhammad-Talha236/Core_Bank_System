@@ -1,9 +1,0 @@
-Tum is tarah simple words me explain kar sakte ho:
-
-> Jab maine RAG chatbot ka knowledge ingestion run kiya, to shuru me Gemini embeddings generate hi nahi ho rahi thi kyun ke main purana embedding model (`text-embedding-004`) use kar raha tha. Isliye 404 error aa raha tha. Maine usko update karke `gemini-embedding-001` use kiya, jisse embedding generate hone lagi.
->
-> Uske baad database error aaya ke `SectionTitle` column exist nahi karta. Maine database schema check kiya aur pata chala table me column ka naam `SourceSection` tha. Isliye maine INSERT query ko table ke according update kar diya.
->
-> Phir ek aur issue aaya ke Gemini 3072-dimensional embeddings return kar raha tha, jabke database sirf 768-dimensional vectors accept kar raha tha. Pehle maine database ko 3072 dimensions par change karne ki koshish ki, lekin `ivfflat` index ki limit ki wajah se wo possible nahi tha. Isliye maine Gemini API me `outputDimensionality: 768` add kiya, taake embeddings 768 dimensions me generate hon.
->
-> Uske baad database aur embeddings dono ki dimensions match ho gayin aur script successfully chal gayi. Har knowledge section database me store ho gaya aur ingestion complete ho gayi.
