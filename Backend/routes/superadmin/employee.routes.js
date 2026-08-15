@@ -11,5 +11,6 @@ router.get('/roles', employeeController.getAllRoles);
 router.post('/', employeeController.createEmployee);
 router.put('/:employeeId', employeeController.updateEmployee);
 router.patch('/:employeeId/status', employeeController.updateEmployeeStatus);
+router.patch('/:employeeId/reset-password', employeeController.resetPassword);
 
 module.exports = router;

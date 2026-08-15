@@ -49,9 +49,9 @@ exports.register = async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
-       VALUES ('INSERT', 'Customer', $1, $2, $3, 'Registered for online banking')`,
-      [customer.CustomerID, customer.Name, customer.CustomerID]
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('INSERT', 'Customer', $1, $2, 'Registered for online banking')`,
+      [customer.CustomerID, customer.Name]
     );
 
     res.json({ success: true, message: 'Registration successful. You can now log in.' });
@@ -62,7 +62,11 @@ exports.register = async (req, res) => {
 };
 
 // POST /api/customer-auth/login
-// Updated Login (Step 1: Verify credentials & send OTP)
+// Step 1: verify CNIC/Gmail + password, send OTP. Step 2: verify OTP, issue token.
+//
+// FIX: identifier ban raha tha (gmail || cnic) lekin query hardcoded sirf
+// "cnic" use kar rahi thi, isliye gmail se login kabhi kaam nahi karta tha.
+// Ab query dono columns ke against identifier check karti hai.
 exports.login = async (req, res) => {
   const { gmail, cnic, password, otpCode } = req.body;
   const identifier = gmail || cnic;
@@ -72,10 +76,11 @@ exports.login = async (req, res) => {
   }
 
   try {
-    // FIX: Added "Gmail" explicitly in the SELECT columns list so customer.Gmail is defined
     const { rows } = await pool.query(
-      `SELECT "CustomerID", "Name", "Gmail", "CNIC", "PasswordHash", "Status", "FailedLoginAttempts", "RegisteredForOnlineBanking"        FROM "Customer"        WHERE "CNIC" = $1`,
-      [cnic]
+      `SELECT "CustomerID", "Name", "Gmail", "CNIC", "PasswordHash", "Status", "FailedLoginAttempts", "RegisteredForOnlineBanking"
+       FROM "Customer"
+       WHERE "CNIC" = $1 OR "Gmail" = $1`,
+      [identifier]
     );
 
     if (rows.length === 0 || !rows[0].RegisteredForOnlineBanking) {
@@ -118,8 +123,6 @@ exports.login = async (req, res) => {
         `INSERT INTO "OtpCode" ("Identifier", "CodeHash", "Purpose", "ExpiresAt") VALUES ($1, $2, $3, $4)`,
         [customer.Gmail, codeHash, 'CUSTOMER_LOGIN', expiresAt]
       );
-
-      console.log(`[OTP DEBUG] Customer Login OTP for ${customer.Gmail}: ${rawCode}`);
 
       // Real email dispatch using customer's actual database email
       await sendOtpEmail(customer.Gmail, rawCode);
@@ -201,11 +204,11 @@ exports.changePassword = async (req, res) => {
     const newHash = await bcrypt.hash(newPassword, 10);
     await pool.query(`UPDATE "Customer" SET "PasswordHash" = $1 WHERE "CustomerID" = $2`, [newHash, req.customer.customerId]);
 
-  await pool.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
-   VALUES ('UPDATE', 'Customer', $1, $2, $3, 'Password changed by customer (self-service)')`,
-  [req.customer.customerId, req.customer.name, req.customer.customerId]
-);
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('UPDATE', 'Customer', $1, $2, 'Password changed by customer (self-service)')`,
+      [req.customer.customerId, req.customer.name]
+    );
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

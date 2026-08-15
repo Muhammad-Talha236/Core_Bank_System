@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import Home from './pages/public/Home';
+import Features from './pages/public/Features';
+import About from './pages/public/About';
 import Login from './pages/staff/Login';
 import Dashboard from './pages/staff/Dashboard';
 import Customers from './pages/staff/Customers';
@@ -23,6 +26,11 @@ import CustomerProtectedRoute from './components/CustomerProtectedRoute';
 function App() {
   return (
     <Routes>
+      {/* Public marketing site - shown before anyone signs in */}
+      <Route path="/" element={<Home />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/about" element={<About />} />
+
       {/* Staff */}
       <Route path="/login" element={<Login />} />
       <Route
@@ -82,8 +90,7 @@ function App() {
         <Route path="security" element={<CustomerSecurity />} />
       </Route>
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

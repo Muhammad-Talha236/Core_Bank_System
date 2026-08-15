@@ -98,6 +98,13 @@ export default function Employees() {
   const [editError, setEditError] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
+  // Reset password modal
+  const [resettingEmployee, setResettingEmployee] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+
   async function loadData() {
     try {
       setError('');
@@ -217,6 +224,45 @@ export default function Employees() {
       );
     } finally {
       setEditSubmitting(false);
+    }
+  }
+
+  function openReset(emp) {
+    setResettingEmployee(emp);
+    setNewPassword('');
+    setResetError('');
+    setResetSuccess('');
+  }
+
+  async function handleResetSubmit(e) {
+    e.preventDefault();
+    setResetError('');
+    setResetSuccess('');
+
+    if (!newPassword || newPassword.length < 8) {
+      setResetError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setResetSubmitting(true);
+
+    try {
+      await api.patch(
+        `/employees/${resettingEmployee.EmployeeID}/reset-password`,
+        { newPassword }
+      );
+
+      setResetSuccess(
+        `Password reset. Share the new password with ${resettingEmployee.Name} securely.`
+      );
+      setNewPassword('');
+      loadData();
+    } catch (err) {
+      setResetError(
+        err.response?.data?.error || 'Failed to reset password.'
+      );
+    } finally {
+      setResetSubmitting(false);
     }
   }
 
@@ -750,6 +796,13 @@ export default function Employees() {
                             >
                               Edit
                             </button>
+ 
+                            <button
+                              onClick={() => openReset(e)}
+                              className="px-3 py-1.5 rounded-lg border border-brass/30 text-[10px] font-medium text-brass-dark hover:bg-brass-100 transition-colors"
+                            >
+                              Reset Password
+                            </button>
 
                             {e.EmployeeID !== currentEmployee.employeeId && (
                               <>
@@ -929,6 +982,101 @@ export default function Employees() {
               </div>
 
             </form>
+          )}
+        </Modal>
+
+        {/* =========================================================
+            RESET PASSWORD MODAL
+        ========================================================= */}
+
+        <Modal
+          open={!!resettingEmployee}
+          onClose={() => setResettingEmployee(null)}
+          title="Reset Password"
+          subtitle={
+            resettingEmployee
+              ? `#${resettingEmployee.EmployeeID} — ${resettingEmployee.Email}`
+              : ''
+          }
+        >
+          {resettingEmployee && (
+            <div className="space-y-5">
+              <div className="rounded-xl bg-ink-50 border border-paper-line p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-ink-900 text-brass flex items-center justify-center text-xs font-display">
+                  {resettingEmployee.Name
+                    ?.split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-ink-900">
+                    {resettingEmployee.Name}
+                  </p>
+                  <p className="text-[11px] text-slate-soft">
+                    Set a new password for this employee account.
+                  </p>
+                </div>
+              </div>
+
+              {!resetSuccess ? (
+                <form onSubmit={handleResetSubmit} className="space-y-5">
+                  <Field label="New Password">
+                    <input
+                      type="password"
+                      required
+                      minLength={8}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimum 8 characters"
+                      className={`luxury-input ${
+                        resetError ? 'luxury-input-error' : ''
+                      }`}
+                    />
+                  </Field>
+
+                  {resetError && (
+                    <div className="text-sm text-ledger-red bg-ledger-red-100 border border-ledger-red/20 rounded-xl px-4 py-3">
+                      {resetError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={resetSubmitting}
+                      className="flex-1 py-2.5 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-800 disabled:opacity-40 transition-colors"
+                    >
+                      {resetSubmitting ? 'Resetting...' : 'Reset Password'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setResettingEmployee(null)}
+                      className="px-5 py-2.5 rounded-xl border border-paper-line text-sm text-ink-800 hover:bg-ink-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <div className="text-sm text-ledger-green bg-ledger-green-100 border border-ledger-green/20 rounded-xl px-4 py-3 mb-4">
+                    {resetSuccess}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setResettingEmployee(null)}
+                    className="w-full py-2.5 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-800 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </Modal>
 
