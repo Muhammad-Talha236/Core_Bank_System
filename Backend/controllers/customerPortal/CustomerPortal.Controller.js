@@ -1,9 +1,5 @@
 const pool = require('../../config/db');
-
-// Online transfers above this amount are not allowed self-service -
-// the customer must visit a branch. Keeps large fraud-prone transfers
-// under staff supervision, same spirit as the employee-side threshold.
-const ONLINE_TRANSFER_LIMIT = 100000;
+const { getNumberSetting } = require('../../config/settings');
 
 // GET /api/customer-portal/accounts - only the logged-in customer's own accounts
 exports.getMyAccounts = async (req, res) => {
@@ -72,6 +68,10 @@ exports.transfer = async (req, res) => {
   if (fromAccount == toAccount) {
     return res.status(400).json({ success: false, error: 'Cannot transfer to the same account' });
   }
+
+  // Reads the current limit from SystemSetting (SuperAdmin-configurable),
+  // falling back to 100000 if the setting row is missing for any reason.
+  const ONLINE_TRANSFER_LIMIT = await getNumberSetting('ONLINE_TRANSFER_LIMIT', 100000);
   if (amount > ONLINE_TRANSFER_LIMIT) {
     return res.status(400).json({
       success: false,
@@ -139,10 +139,10 @@ exports.transfer = async (req, res) => {
     );
 
     await client.query(
-  `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
-   VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
-  [fromAccount, req.customer.name, req.customer.customerId, `Online transfer of ${amount} to Account ${toAccount} (self-service)`]
-);
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('COMMIT', 'Account', $1, $2, $3)`,
+      [fromAccount, req.customer.name, `Online transfer of ${amount} to Account ${toAccount} (self-service)`]
+    );
 
     await client.query('COMMIT');
 
@@ -239,9 +239,9 @@ exports.payBill = async (req, res) => {
     );
 
     await client.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "CustomerID", "Details")
-       VALUES ('COMMIT', 'Account', $1, $2, $3, $4)`,
-      [fromAccount, req.customer.name, req.customer.customerId, `Bill payment of ${amount} to ${billerRows[0].BillerName}`]
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('COMMIT', 'Account', $1, $2, $3)`,
+      [fromAccount, req.customer.name, `Bill payment of ${amount} to ${billerRows[0].BillerName}`]
     );
 
     await client.query('COMMIT');

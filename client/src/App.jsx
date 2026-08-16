@@ -11,6 +11,7 @@ import Approvals from './pages/staff/Approvals';
 import AuditLog from './pages/staff/AuditLog';
 import Employees from './pages/staff/Employees';
 import Branches from './pages/staff/Branches';
+import Settings from './pages/staff/Settings';
 import ChangePassword from './pages/staff/ChangePassword';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -67,6 +68,14 @@ function App() {
           element={
             <ProtectedRoute roles={['SuperAdmin']}>
               <Branches />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute roles={['SuperAdmin']}>
+              <Settings />
             </ProtectedRoute>
           }
         />

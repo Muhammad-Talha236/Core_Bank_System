@@ -1,25 +1,10 @@
 const pool = require('../../config/db');
 
-// --- Validation helpers -----------------------------------------------
-// Client-side checks can always be bypassed (Postman, curl, etc), so the
-// same rules are enforced again here before anything touches the DB.
-function isValidName(name) {
-  return /^[A-Za-z\s]{3,}$/.test((name || '').trim());
-}
-function isValidCode(code) {
-  return /^[A-Za-z0-9]{2,10}$/.test((code || '').trim());
-}
-function isValidCity(city) {
-  // City is optional, but if provided it must be letters/spaces only
-  return !city || /^[A-Za-z\s]+$/.test(city.trim());
-}
-// ------------------------------------------------------------------------
-
 // Get all branches
 exports.getAllBranches = async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT "BranchID", "BranchName", "BranchCode", "City", "Address", "CreatedAt"
+      SELECT "BranchID", "BranchName", "BranchCode", "City", "Address", "IsActive", "CreatedAt"
       FROM "Branch"
       ORDER BY "BranchID"
     `);
@@ -38,46 +23,111 @@ exports.createBranch = async (req, res) => {
     return res.status(400).json({ error: 'branchName and branchCode are required' });
   }
 
-  if (!isValidName(branchName)) {
-    return res.status(400).json({ error: 'Branch name must be at least 3 characters and contain letters only' });
-  }
-
-  if (!isValidCode(branchCode)) {
-    return res.status(400).json({ error: 'Branch code must be 2-10 letters/numbers, no spaces or symbols' });
-  }
-
-  if (!isValidCity(city)) {
-    return res.status(400).json({ error: 'City can only contain letters and spaces' });
-  }
-
-  if (address && address.trim().length < 5) {
-    return res.status(400).json({ error: 'Address looks too short' });
-  }
-
-  const cleanName = branchName.trim();
-  const cleanCode = branchCode.trim().toUpperCase();
-  const cleanCity = city ? city.trim() : null;
-  const cleanAddress = address ? address.trim() : null;
-
   try {
     const { rows } = await pool.query(
       `INSERT INTO "Branch" ("BranchName", "BranchCode", "City", "Address")
        VALUES ($1, $2, $3, $4)
        RETURNING "BranchID"`,
-      [cleanName, cleanCode, cleanCity, cleanAddress]
+      [branchName, branchCode.toUpperCase(), city || null, address || null]
     );
 
     await pool.query(
-      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "EmployeeID", "Details")
-       VALUES ('INSERT', 'Branch', $1, $2, $3, $4)`,
-      [rows[0].BranchID, req.employee.name, req.employee.employeeId, `Branch "${cleanName}" (${cleanCode}) created`]
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('INSERT', 'Branch', $1, $2, $3)`,
+      [rows[0].BranchID, req.employee.name, `Branch "${branchName}" (${branchCode}) created`]
     );
+
     res.json({ success: true, branchId: rows[0].BranchID, message: 'Branch created successfully' });
   } catch (error) {
     console.error('Error creating branch:', error);
     if (error.code === '23505') {
       return res.status(400).json({ error: 'A branch with this branch code already exists' });
     }
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Update a branch's name, code, city, or address
+exports.updateBranch = async (req, res) => {
+  const { branchId } = req.params;
+  const { branchName, branchCode, city, address } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE "Branch"
+       SET "BranchName" = COALESCE($1, "BranchName"),
+           "BranchCode" = COALESCE($2, "BranchCode"),
+           "City" = COALESCE($3, "City"),
+           "Address" = COALESCE($4, "Address")
+       WHERE "BranchID" = $5
+       RETURNING "BranchID"`,
+      [branchName || null, branchCode ? branchCode.toUpperCase() : null, city || null, address || null, branchId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('UPDATE', 'Branch', $1, $2, $3)`,
+      [branchId, req.employee.name, `Branch #${branchId} updated by ${req.employee.name}`]
+    );
+
+    res.json({ success: true, message: 'Branch updated successfully' });
+  } catch (error) {
+    console.error('Error updating branch:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'A branch with this branch code already exists' });
+    }
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Mark a branch Active/Inactive. This never deletes the branch - historical
+// accounts, employees, and audit entries stay linked to it. Deactivating
+// just hides it from new employee/account assignment.
+exports.updateBranchStatus = async (req, res) => {
+  const { branchId } = req.params;
+  const { isActive } = req.body;
+
+  if (typeof isActive !== 'boolean') {
+    return res.status(400).json({ error: 'isActive must be true or false' });
+  }
+
+  try {
+    if (!isActive) {
+      // A branch can't go inactive while it still has active staff -
+      // they'd be left assigned to a branch that's officially closed.
+      const { rows: activeStaff } = await pool.query(
+        `SELECT COUNT(*) FROM "Employee" WHERE "BranchID" = $1 AND "Status" = 'Active'`,
+        [branchId]
+      );
+      if (parseInt(activeStaff[0].count) > 0) {
+        return res.status(400).json({
+          error: 'Cannot deactivate a branch with active employees assigned to it. Reassign or suspend them first.'
+        });
+      }
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE "Branch" SET "IsActive" = $1 WHERE "BranchID" = $2 RETURNING "BranchName"`,
+      [isActive, branchId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Branch not found' });
+    }
+
+    await pool.query(
+      `INSERT INTO "AuditLog" ("Operation", "TableAffected", "RecordID", "UserName", "Details")
+       VALUES ('UPDATE', 'Branch', $1, $2, $3)`,
+      [branchId, req.employee.name, `Branch "${rows[0].BranchName}" marked ${isActive ? 'Active' : 'Inactive'} by ${req.employee.name}`]
+    );
+
+    res.json({ success: true, message: `Branch marked ${isActive ? 'Active' : 'Inactive'}` });
+  } catch (error) {
+    console.error('Error updating branch status:', error);
     res.status(500).json({ error: error.message });
   }
 };
